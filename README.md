@@ -31,28 +31,28 @@ LyNCh is a testing framework for orchestrating and evaluating robotic soccer sim
 ```
 
 ### Components
-| Component   | Responsibility                                                                                                 |
-|-------------|----------------------------------------------------------------------------------------------------------------|
-| **Cooper**  | Orchestrates the training workflow, manages component lifecycle, coordinates responses to episode completion   |
-| **LogLady** | Maintains a thread-safe queue with the latest state from AutoRef                                               |
+| Component   | Responsibility                                                                                                             |
+|-------------|----------------------------------------------------------------------------------------------------------------------------|
+| **Cooper**  | Orchestrates the training workflow, manages component lifecycle, coordinates responses to episode completion               |
+| **LogLady** | Maintains a thread-safe queue with the latest state from AutoRef                                                           |
 | **Giant**   | Evaluates episode end conditions; abstract base class extended by specific evaluation types (e.g., `PenaltyKickEvaluator`) |
-| **Diane**   | Handles episode result persistence as JSONL with query capabilities and CSV export                             |
-| **Hawk**    | Initializes environments, loads scenarios, applies variance strategies for domain randomization                |
+| **Diane**   | Handles episode result persistence as JSONL with query capabilities and CSV export                                         |
+| **Hawk**    | Initializes environments, loads scenarios, applies variance strategies for domain randomization                            |
 
 ## Project Structure
 ```
 LyNCh/
 ├── README.md
 ├── LICENSE
-├── test_config.json          # Test scenario configurations
-├── scenarios/                # Scenario position files
-│   └── penalty_kick_positions.json
-└── src/                      # Source code (to be implemented)
-    ├── cooper.py
-    ├── log_lady.py
-    ├── giant.py              # Giant base + implementations
-    ├── diane.py
-    └── hawk.py               # VarianceStrategy implementations
+├── test_config.json              # Test scenario configurations
+├── scenarios/                    # Scenario position files
+├── lynch/                        # Main package
+│   ├── cooper.py                 # Main orchestrator (instantiates all components)
+│   ├── loglady/                  # StateBuffer - polls AutoRef, maintains state queue
+│   ├── giant/                    # TestEvaluator - base class + specific evaluators
+│   ├── diane/                    # ResultManager - JSONL storage, CSV export
+│   └── hawk/                     # EnvManager - scenario loading, variance strategies
+└── tests/                        # Test suite
 ```
 
 ## Configuration
