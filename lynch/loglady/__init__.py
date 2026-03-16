@@ -1,1 +1,1 @@
-from loglady import LogLady
+from .loglady import LogLady
