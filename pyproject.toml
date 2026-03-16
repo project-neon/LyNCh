@@ -1,0 +1,28 @@
+[project]
+name = "lynch"
+version = "0.1.0"
+description = "Logical yardstick NeonFC Checker"
+authors = [
+    {name = "Eduardo Makita",email = "makitayukio1@gmail.com"},
+    {name = "João Pedro Leal", email = "jpkleal@gmail.com"}
+]
+license = {text = "MIT License"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "protobuf (>=7.34.0,<8.0.0)",
+    "numpy (>=2.4.3,<3.0.0)"
+]
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)",
+    "mypy (>=1.19.1,<2.0.0)",
+    "flake8 (>=7.3.0,<8.0.0)",
+    "flake8-bugbear (>=25.11.29,<26.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
