@@ -4,63 +4,144 @@ import struct
 import socket
 import logging
 import threading
+from enum import Enum, auto
 from collections import deque
+from typing import Any, Dict, Optional
 from google.protobuf.json_format import MessageToJson
 from protocols.gc.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
 
 logger = logging.getLogger(__name__)
 
 
-class Log(threading.Thread):
-    def __init__(self) -> None:
+class LogMode(Enum):
+    DIRECT = auto()
+    NEONFC = auto()
+
+
+class BaseBuffer(threading.Thread):
+    def __init__(self, host: str, port: int) -> None:
         super().__init__(daemon=True)
-        self.queue = deque(maxlen=1)
-        self.host = "224.5.23.2"
-        self.vision_port = 10010
-        self.socket = None
+        self.queue: deque = deque(maxlen=1)
+        self.host = host
+        self.port = port
+        self.socket: Optional[socket.socket] = None
         self.running = threading.Event()
 
     def stop(self) -> None:
         self.running.clear()
         if self.socket:
             self.socket.close()
-        self.join(timeout=1.0)
+        if self.is_alive():
+            self.join(timeout=1.0)
+
+    def pull(self) -> Optional[Dict[str, Any]]:
+        if not self.queue:
+            return None
+        return self.queue.popleft()
+
+    def _create_socket(self) -> socket.socket:
+        raise NotImplementedError
+
+    def run(self) -> None:
+        raise NotImplementedError
+
+
+class AutoRefBuffer(BaseBuffer):
+    def _create_socket(self) -> socket.socket:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((self.host, self.port))
+        mreq = struct.pack("4sl", socket.inet_aton(self.host), socket.INADDR_ANY)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        return sock
+
+    def _wait_to_connect(self):
+        if self.socket:
+            self.socket.recv(1024)
 
     def run(self) -> None:
         self.socket = self._create_socket()
         self._wait_to_connect()
         self.running.set()
         while self.running.is_set():
-            state = self._poll_autoref()
-            if state:
-                self.queue.append(state)
+            try:
+                data = self.socket.recv(2048)
+                packet = TrackerWrapperPacket()
+                packet.ParseFromString(data)
+                state = json.loads(MessageToJson(packet))
+                self.queue.append({"state": state, "prev_state": None, "action": None})
+            except Exception as e:
+                if self.running.is_set():
+                    logger.error(f"Error polling AutoRef: {e}")
             time.sleep(1e-3)
 
-    def pull(self):
-        if not self.queue:
-            return None
-        return self.queue.popleft()
 
-    def _wait_to_connect(self):
-        self.socket.recv(1024)
-
-    def _create_socket(self):
+class NeonFCBuffer(BaseBuffer):
+    def _create_socket(self) -> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.host, self.vision_port))
-        mreq = struct.pack("4sl", socket.inet_aton(self.host), socket.INADDR_ANY)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        sock.bind((self.host, self.port))
         return sock
 
-    def _poll_autoref(self):
-        try:
-            new_state = TrackerWrapperPacket()
-            data = self.socket.recv(2048)
-            new_state.ParseFromString(data)
-            return json.loads(MessageToJson(new_state))
-        except Exception as e:
-            logger.error(f"Error polling AutoRef: {e}")
-            return None
+    def run(self) -> None:
+        self.socket = self._create_socket()
+        self.running.set()
+        while self.running.is_set():
+            try:
+                data = self.socket.recv(4096)
+                payload = json.loads(data.decode("utf-8"))
+                self.queue.append(
+                    {
+                        "state": payload.get("cur_state"),
+                        "prev_state": payload.get("prev_state"),
+                        "action": payload.get("action"),
+                    }
+                )
+            except Exception as e:
+                if self.running.is_set():
+                    logger.error(f"Error receiving NeonFC tuple: {e}")
+            time.sleep(1e-3)
+
+
+class Log:
+    def __init__(
+        self,
+        mode: LogMode = LogMode.DIRECT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> None:
+        self.mode = mode
+        if mode == LogMode.DIRECT:
+            host = host or "224.5.23.2"
+            port = port or 10010
+            self._buffer = AutoRefBuffer(host, port)
+        elif mode == LogMode.NEONFC:
+            host = host or "127.0.0.1"
+            port = port or 10011
+            self._buffer = NeonFCBuffer(host, port)
+        else:
+            raise ValueError(f"Invalid BufferMode: {mode}")
+
+    def start(self) -> None:
+        self._buffer.start()
+
+    def stop(self) -> None:
+        self._buffer.stop()
+
+    def pull(self) -> Optional[Dict[str, Any]]:
+        return self._buffer.pull()
+
+    @property
+    def running(self) -> threading.Event:
+        return self._buffer.running
+
+    @property
+    def socket(self) -> Optional[socket.socket]:
+        return self._buffer.socket
+
+    @property
+    def queue(self) -> deque:
+        return self._buffer.queue
 
 
 if __name__ == "__main__":
@@ -71,58 +152,52 @@ if __name__ == "__main__":
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    log = Log()
+    # Example: Choose mode from CLI or default to DIRECT
+    mode = LogMode.DIRECT
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "neonfc":
+        mode = LogMode.NEONFC
+
+    loglady = Log(mode=mode)
     packet_count = 0
-    last_frame_number = None
 
     def signal_handler(sig, frame):
-        """Handle Ctrl+C gracefully."""
-        print("\nStopping log...")
-        log.stop()
+        print(f"\nStopping LogLady ({mode.name} mode)...")
+        loglady.stop()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    print("LogLady - SSL Vision Multicast Listener")
+    print(f"LogLady - Mode: {mode.name}")
     print("=" * 40)
-    print(f"Listening on {log.host}:{log.vision_port}")
+    print(f"Listening on {loglady._buffer.host}:{loglady._buffer.port}")
     print("Press Ctrl+C to stop\n")
 
-    log.start()
+    loglady.start()
 
     try:
         while True:
-            state = log.pull()
-            if state:
+            data = loglady.pull()
+            if data:
                 packet_count += 1
-                uuid = state.get("uuid", "unknown")
-                source = state.get("sourceName", state.get("source_name", "unknown"))
+                state = data["state"]
 
-                # Get frame number to track new packets
-                frame = state.get("trackedFrame", state.get("tracked_frame", {}))
-                frame_number = frame.get("frameNumber", frame.get("frame_number", 0))
-                timestamp = frame.get("timestamp", 0)
+                if mode == LogMode.DIRECT:
+                    frame = state.get("trackedFrame", state.get("tracked_frame", {}))
+                    frame_number = frame.get(
+                        "frameNumber", frame.get("frame_number", 0)
+                    )
 
-                # Track if this is a new frame
-                is_new = frame_number != last_frame_number
-                last_frame_number = frame_number
+                    print(
+                        f"[{packet_count}] Frame: {frame_number} | {frame}"
+                    )
 
-                status = "[NEW]" if is_new else "[SAME]"
+                else:
+                    action = data.get("action")
+                    print(f"[{packet_count}] Action: {action}")
 
-                # Get ball data
-                balls = frame.get("balls", [])
-                ball_info = ""
-                if balls:
-                    ball = balls[0]
-                    pos = ball.get("pos", {})
-                    vel = ball.get("vel", {})
-                    ball_info = f"Ball: ({pos.get('x', 0):.2f}, {pos.get('y', 0):.2f}) v=({vel.get('x', 0):.2f}, {vel.get('y', 0):.2f})"
-
-                print(f"[{packet_count}] {status} Frame: {frame_number} | {ball_info}")
-
-            time.sleep(0.01)  # Faster polling
+            time.sleep(0.01)
     except KeyboardInterrupt:
         pass
     finally:
-        log.stop()
+        loglady.stop()
         print(f"\n\nTotal packets received: {packet_count}")
