@@ -1,7 +1,7 @@
 {
     "scenarios": {
         "penalty_kick_uniform": {
-            "baseline_file": "penalty_kick_positions.json",
+            "baseline_file": "scenarios/penalty_kick_positions.json",
             "strategy": "uniform_random",
             "variance": {
                 "ball": {
@@ -19,7 +19,7 @@
             }
         },
         "penalty_kick_gaussian": {
-            "baseline_file": "penalty_kick_positions.json",
+            "baseline_file": "scenarios/penalty_kick_positions.json",
             "strategy": "gaussian_random",
             "variance": {
                 "ball": {
