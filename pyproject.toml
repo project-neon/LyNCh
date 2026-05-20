@@ -10,8 +10,9 @@ license = {text = "MIT License"}
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "protobuf (>=7.34.0,<8.0.0)",
-    "numpy (>=2.4.3,<3.0.0)"
+    "protobuf (>=3.20.0,<4.0.0)",
+    "numpy (>=2.4.3,<3.0.0)",
+    "ruff (>=0.15.6,<0.16.0)"
 ]
 
 [dependency-groups]
@@ -20,6 +21,17 @@ dev = [
     "mypy (>=1.19.1,<2.0.0)",
     "flake8 (>=7.3.0,<8.0.0)",
     "flake8-bugbear (>=25.11.29,<26.0.0)"
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (require network/AutoRef)",
+    "unit: marks tests as unit tests"
+]
+filterwarnings = [
+    'ignore:Call to deprecated create function:DeprecationWarning',
+    'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated:DeprecationWarning',
+    'ignore:.* descriptors is going to go away:DeprecationWarning'
 ]
 
 
