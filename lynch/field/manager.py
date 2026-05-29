@@ -4,12 +4,18 @@ import pathlib
 from typing import Dict
 from protocols.sim.grSim_Packet_pb2 import grSim_Packet
 from protocols.sim.grSim_Replacement_pb2 import grSim_Replacement
-from .variance import NoVariance
+from .variance import (
+    NoVariance,
+    UniformRandomVariance,
+    GaussianRandomVariance
+)
 
 GRSIM_HOST = "127.0.0.1"
 GRSIM_PORT = 20011
 STRATEGIES = {
     "no_variance": NoVariance,
+    "uniform_random": UniformRandomVariance,
+    "gaussian_random": GaussianRandomVariance,
 }
 
 _SELF_DIR = pathlib.Path(__file__).parent.resolve()
