@@ -12,10 +12,10 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import ssl_vision_detection_pb2 as ssl__vision__detection__pb2
-import ssl_simulation_robot_feedback_pb2 as ssl__simulation__robot__feedback__pb2
-import ssl_simulation_robot_control_pb2 as ssl__simulation__robot__control__pb2
-import ssl_simulation_control_pb2 as ssl__simulation__control__pb2
+from protocols.vision import ssl_vision_detection_pb2 as ssl__vision__detection__pb2
+from protocols.sim import ssl_simulation_robot_feedback_pb2 as ssl__simulation__robot__feedback__pb2
+from protocols.sim import ssl_simulation_robot_control_pb2 as ssl__simulation__robot__control__pb2
+from protocols.sim import ssl_simulation_control_pb2 as ssl__simulation__control__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(

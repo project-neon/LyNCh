@@ -13,8 +13,8 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import ssl_gc_common_pb2 as ssl__gc__common__pb2
-import ssl_gc_rcon_pb2 as ssl__gc__rcon__pb2
+from protocols.gc import ssl_gc_common_pb2 as ssl__gc__common__pb2
+from protocols.gc import ssl_gc_rcon_pb2 as ssl__gc__rcon__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(

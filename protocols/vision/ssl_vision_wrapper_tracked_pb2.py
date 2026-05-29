@@ -12,7 +12,7 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import neonfc_ssl.protocols.gc.ssl_vision_detection_tracked_pb2 as ssl__vision__detection__tracked__pb2
+from protocols.vision import ssl_vision_detection_tracked_pb2 as ssl__vision__detection__tracked__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
