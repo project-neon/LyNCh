@@ -1,0 +1,31 @@
+{
+    "scenarios": {
+        "option_1": {
+            "baseline_file": "scenarios/dev/templates/pos_1.json",
+            "strategy": "uniform_random",
+            "variance": {
+                "ball": {"x": [-2.0, 2.0], "y": [-2.0, 2.0]},
+                "robots": {
+                    "yellow": {"0": {"x": [-0.5, 0.5], "y": [-0.5, 0.5], "theta": [-1.0, 1.0]}},
+                    "blue": {"0": {"x": [-0.5, 0.5], "y": [-0.5, 0.5], "theta": [-1.0, 1.0]}}
+                }
+            }
+        },
+        "option_2": {
+            "baseline_file": "scenarios/dev/templates/pos_2.json",
+            "strategy": "gaussian_random",
+            "variance": {
+                "ball": {"x": 1.0, "y": 1.0},
+                "robots": {
+                    "yellow": {"0": {"x": 0.5, "y": 0.5}},
+                    "blue": {"0": {"x": 0.5, "y": 0.5}}
+                }
+            }
+        },
+        "option_3": {
+            "baseline_file": "scenarios/dev/templates/pos_3.json",
+            "strategy": "deterministic",
+            "variance": {}
+        }
+    }
+}
