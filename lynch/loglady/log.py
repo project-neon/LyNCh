@@ -8,7 +8,7 @@ from enum import Enum, auto
 from collections import deque
 from typing import Any, Dict, Optional
 from google.protobuf.json_format import MessageToJson
-from protocols.gc.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
+from protocols.vision.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
 
 logger = logging.getLogger(__name__)
 
