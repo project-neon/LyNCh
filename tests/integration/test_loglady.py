@@ -1,94 +1,61 @@
-"""Integration tests for LogLady with real socket communication."""
+"""Integration tests for LogLady with real socket communication and multiprocessing."""
 
-import socket
 import time
+import pytest
+from lynch.loglady import StateBuffer, AutoRefProvider, NeonFCProvider
 
-from lynch.loglady.log import Log, LogMode
-
-
-class TestLogLadyIntegration:
-    """Integration tests requiring network connectivity."""
-
-    def test_receives_data_from_autoref_direct(self, mock_autoref):
-        """LogLady should receive data from AutoRef in DIRECT mode."""
-        loglady = Log(mode=LogMode.DIRECT)
-        loglady.start()
-        time.sleep(0.1)
-
-        data = loglady.pull()
-
+@pytest.mark.integration
+def test_state_buffer_receives_data_from_autoref(mock_autoref):
+    """Verify end-to-end data flow from AutoRef mock to StateBuffer."""
+    provider = AutoRefProvider(host="224.5.23.2", port=10010)
+    sb = StateBuffer(provider=provider)
+    
+    sb.start()
+    
+    # Wait for data to flow through process -> pipe
+    time.sleep(0.2)
+    data = sb.pull()
+    
+    try:
         assert data is not None
         assert "state" in data
         assert "uuid" in data["state"]
         assert data["state"]["uuid"].startswith("test-packet-")
-        assert data["prev_state"] is None
-        assert data["action"] is None
+    finally:
+        sb.stop()
 
-        loglady.stop()
-
-    def test_receives_data_from_neonfc(self, mock_neonfc):
-        """LogLady should receive data from NeonFC in NEONFC mode."""
-        loglady = Log(mode=LogMode.NEONFC)
-        loglady.start()
-        time.sleep(0.1)
-
-        data = loglady.pull()
-
+@pytest.mark.integration
+def test_state_buffer_receives_data_from_neonfc(mock_neonfc):
+    """Verify end-to-end data flow from NeonFC mock to StateBuffer."""
+    provider = NeonFCProvider(host="127.0.0.1", port=10011)
+    sb = StateBuffer(provider=provider)
+    
+    sb.start()
+    
+    time.sleep(0.2)
+    data = sb.pull()
+    
+    try:
         assert data is not None
         assert "state" in data
-        assert "prev_state" in data
         assert "action" in data
-        assert "frame" in data["state"]
         assert data["action"].startswith("action-")
+    finally:
+        sb.stop()
 
-        loglady.stop()
-
-    def test_stop_gracefully_terminates_thread(self, mock_autoref):
-        """stop() should terminate thread cleanly."""
-        loglady = Log()
-        loglady.start()
-        time.sleep(0.05)
-
-        assert loglady._buffer.is_alive()
-
-        loglady.stop()
-
-        # Thread should stop within timeout
-        timeout = 2.0
-        start = time.time()
-        while loglady._buffer.is_alive() and (time.time() - start) < timeout:
-            time.sleep(0.01)
-
-        assert not loglady._buffer.is_alive(), "Thread did not stop within timeout"
-
-
-class TestLogLadySocketBehavior:
-    """Test socket-level behavior."""
-
-    def test_autoref_socket_is_multicast_udp(self):
-        """AutoRefBuffer should create UDP multicast socket."""
-        loglady = Log(mode=LogMode.DIRECT)
-        sock = loglady._buffer._create_socket()
-
-        assert sock.family == socket.AF_INET
-        assert sock.type == socket.SOCK_DGRAM
-        
-        # Check SO_REUSEADDR
-        opts = sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
-        assert opts == 1
-        
-        sock.close()
-
-    def test_neonfc_socket_is_standard_udp(self):
-        """NeonFCBuffer should create standard UDP socket."""
-        loglady = Log(mode=LogMode.NEONFC)
-        sock = loglady._buffer._create_socket()
-
-        assert sock.family == socket.AF_INET
-        assert sock.type == socket.SOCK_DGRAM
-        
-        # Should also have SO_REUSEADDR for easier testing
-        opts = sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
-        assert opts == 1
-        
-        sock.close()
+@pytest.mark.integration
+def test_state_buffer_clean_stop():
+    """Verify that stop() actually kills the background process and closes resources."""
+    # We use a real provider but no server to test the timeout/stop logic
+    provider = AutoRefProvider(host="127.0.0.1", port=20000) 
+    sb = StateBuffer(provider=provider)
+    
+    sb.start()
+    assert sb.is_alive()
+    
+    sb.stop()
+    
+    # Process should be dead
+    assert not sb.is_alive()
+    # Writer end of pipe (in child) should be closed (we can't easily check child handles, 
+    # but we verify no hang)

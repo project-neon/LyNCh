@@ -207,3 +207,4 @@ cython_debug/
 #__marimo__/
 
 /.python-version
+/scripts
