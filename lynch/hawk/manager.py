@@ -2,8 +2,8 @@ import json
 import socket
 import pathlib
 from typing import Dict
-from protocols.grSim.grSim_Packet_pb2 import grSim_Packet
-from protocols.grSim.grSim_Replacement_pb2 import grSim_Replacement
+from protocols.sim.grSim_Packet_pb2 import grSim_Packet
+from protocols.sim.grSim_Replacement_pb2 import grSim_Replacement
 from . import DeterministicVariance
 
 GRSIM_HOST = "127.0.0.1"
