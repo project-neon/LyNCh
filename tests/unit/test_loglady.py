@@ -1,39 +1,40 @@
-"""Unit tests for the LogLady (StateBuffer) module."""
+"""Unit tests for the StateBuffer module."""
 
 import json
 import socket
 from unittest.mock import Mock, patch
+from collections import deque
 import pytest
 
 from lynch.state_buffer import StateBuffer, AutoRefProvider, NeonFCProvider
 
 @pytest.mark.unit
 def test_state_buffer_init():
-    """Verify StateBuffer initializes with correct provider and pipe."""
+    """Verify StateBuffer initializes with correct provider and internal deque."""
     mock_provider = Mock()
     sb = StateBuffer(provider=mock_provider)
     
     assert sb.provider == mock_provider
     assert sb.daemon is True
-    # Verify pipe existence (head/tail logic)
-    assert hasattr(sb, "pipe_tail")
-    assert hasattr(sb, "pipe_head")
+    assert isinstance(sb._buffer, deque)
+    assert sb._buffer.maxlen is None  # Integrity priority
 
 @pytest.mark.unit
-def test_state_buffer_pull_drains_pipe():
-    """Verify pull() drains the pipe to get the latest packet."""
+def test_state_buffer_pull_fifo_logic():
+    """Verify pull() follows FIFO logic and doesn't skip frames."""
     mock_provider = Mock()
     sb = StateBuffer(provider=mock_provider)
     
-    # Mock pipe_tail.poll and recv
-    sb.pipe_tail.poll = Mock(side_effect=[True, True, False])
-    sb.pipe_tail.recv = Mock(side_effect=[{"frame": 1}, {"frame": 2}])
+    # Manually populate the buffer
+    sb._buffer.append({"frame": 1})
+    sb._buffer.append({"frame": 2})
     
-    result = sb.pull()
-    
-    assert result == {"frame": 2}
-    assert sb.pipe_tail.poll.call_count == 3
-    assert sb.pipe_tail.recv.call_count == 2
+    # First pull should get frame 1
+    assert sb.pull() == {"frame": 1}
+    # Second pull should get frame 2
+    assert sb.pull() == {"frame": 2}
+    # Third pull should be empty
+    assert sb.pull() is None
 
 @pytest.mark.unit
 def test_autoref_provider_step_logic():
@@ -41,7 +42,6 @@ def test_autoref_provider_step_logic():
     provider = AutoRefProvider(host="127.0.0.1", port=10010)
     mock_socket = Mock()
     
-    # Mocking the socket.recv and Protobuf parsing
     with patch("lynch.state_buffer.autoref_provider.TrackerWrapperPacket") as mock_packet_cls, \
          patch("lynch.state_buffer.autoref_provider.MessageToJson") as mock_to_json:
         
@@ -78,7 +78,7 @@ def test_neonfc_provider_step_logic():
 
 @pytest.mark.unit
 def test_provider_timeout_handling():
-    """Verify providers return None on socket timeout instead of crashing."""
+    """Verify providers return None on socket timeout."""
     provider = AutoRefProvider(host="127.0.0.1", port=10010)
     mock_socket = Mock()
     mock_socket.recv.side_effect = socket.timeout

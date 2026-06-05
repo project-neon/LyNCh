@@ -1,7 +1,7 @@
-from multiprocessing import Process, Event, Pipe
+from threading import Thread, Event
+from collections import deque
 from enum import Enum, auto
 from .provider import DataProvider
-from typing import Optional, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,39 +12,32 @@ class DataMode(Enum):
     NEONFC = auto()
 
 
-class StateBuffer(Process):
+class StateBuffer(Thread):
     def __init__(self, provider: DataProvider):
         super().__init__(daemon=True)
         self.provider = provider
-        self.pipe_tail, self.pipe_head = Pipe(duplex=False)
         self.stop_event = Event()
-        self._last_packet: Optional[Dict[str, Any]] = None
+        self._buffer = deque()
 
     def run(self):
         try:
             self.provider.connect()
             while not self.stop_event.is_set():
-
                 data = self.provider.step()
                 if data:
-                    self.pipe_head.send(data)
+                    self._buffer.append(data)
+
         except Exception as e:
             logger.error(e)
+
         finally:
             self.provider.close()
-            self.pipe_head.close()
 
     def pull(self):
-        while self.pipe_tail.poll():
-            self._last_packet = self.pipe_tail.recv()
-
-        return self._last_packet
+        if not self._buffer:
+            return None
+        return self._buffer.popleft()
 
     def stop(self):
         self.stop_event.set()
         self.join(timeout=1.0)
-
-        if self.is_alive():
-            self.terminate()
-
-        self.pipe_head.close()
