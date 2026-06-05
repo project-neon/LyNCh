@@ -1,14 +1,14 @@
-"""New integration tests for Hawk Variance strategies within EnvManager."""
+"""New integration tests for Hawk Variance strategies within Manager."""
 
 import pytest
 import json
 import time
 import pathlib
-from lynch.env_manager.manager import EnvManager
+from lynch.field.manager import Manager
 
 @pytest.mark.integration
 def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
-    """Verify that EnvManager correctly applies UniformRandomVariance from config."""
+    """Verify that Manager correctly applies UniformRandomVariance from config."""
     # 1. Prepare data
     baseline_data = {
         "ball": {"x": 0.0, "y": 0.0},
@@ -39,8 +39,8 @@ def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(config_data))
 
-        # 2. Run EnvManager
-        manager = EnvManager(config_path=str(config_file))
+        # 2. Run Manager
+        manager = Manager(config_path=str(config_file))
         manager.setup_scenario("rand_test")
 
         # 3. Verify Protobuf results at mock server
@@ -62,7 +62,7 @@ def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
 
 @pytest.mark.integration
 def test_manager_resolves_and_applies_gaussian_noise(mock_grsim, tmp_path):
-    """Verify that EnvManager correctly applies GaussianRandomVariance from config."""
+    """Verify that Manager correctly applies GaussianRandomVariance from config."""
     scenarios_dir = pathlib.Path(__file__).parent.parent.parent / "scenarios"
     baseline_file = scenarios_dir / "integration_test_temp_gauss.json"
     baseline_file.write_text(json.dumps({"ball": {"x": 0.0, "y": 0.0}, "robots": {"yellow": [], "blue": []}}))
@@ -80,7 +80,7 @@ def test_manager_resolves_and_applies_gaussian_noise(mock_grsim, tmp_path):
         config_file = tmp_path / "config_gauss.json"
         config_file.write_text(json.dumps(config_data))
 
-        manager = EnvManager(config_path=str(config_file))
+        manager = Manager(config_path=str(config_file))
         manager.setup_scenario("gauss_test")
 
         time.sleep(0.1)
