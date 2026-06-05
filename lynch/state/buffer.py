@@ -12,7 +12,7 @@ class DataMode(Enum):
     NEONFC = auto()
 
 
-class StateBuffer(Thread):
+class Buffer(Thread):
     def __init__(self, provider: DataProvider):
         super().__init__(daemon=True)
         self.provider = provider

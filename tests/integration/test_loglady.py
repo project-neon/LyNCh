@@ -2,13 +2,13 @@
 
 import time
 import pytest
-from lynch.state_buffer import StateBuffer, AutoRefProvider, NeonFCProvider
+from lynch.state import Buffer, AutoRefProvider, NeonFCProvider
 
 @pytest.mark.integration
 def test_state_buffer_receives_sequential_data_from_autoref(mock_autoref):
     """Verify end-to-end data flow and sequential integrity."""
     provider = AutoRefProvider(host="224.5.23.2", port=10010)
-    sb = StateBuffer(provider=provider)
+    sb = Buffer(provider=provider)
     
     sb.start()
     
@@ -45,7 +45,7 @@ def test_state_buffer_receives_sequential_data_from_autoref(mock_autoref):
 def test_state_buffer_receives_data_from_neonfc(mock_neonfc):
     """Verify end-to-end data flow from NeonFC mock."""
     provider = NeonFCProvider(host="127.0.0.1", port=10011)
-    sb = StateBuffer(provider=provider)
+    sb = Buffer(provider=provider)
     
     sb.start()
     time.sleep(0.1)
@@ -62,7 +62,7 @@ def test_state_buffer_receives_data_from_neonfc(mock_neonfc):
 def test_state_buffer_clean_stop():
     """Verify that stop() terminates the background thread."""
     provider = AutoRefProvider(host="127.0.0.1", port=20000) 
-    sb = StateBuffer(provider=provider)
+    sb = Buffer(provider=provider)
     
     sb.start()
     assert sb.is_alive()
