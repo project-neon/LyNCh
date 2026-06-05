@@ -1,7 +1,7 @@
 """New unit tests for Hawk Variance strategies and recursion logic."""
 
 import pytest
-from lynch.hawk.variance import (
+from lynch.env_manager.variance import (
     DeterministicVariance,
     UniformRandomVariance,
     GaussianRandomVariance

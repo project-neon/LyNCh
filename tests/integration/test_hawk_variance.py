@@ -4,7 +4,7 @@ import pytest
 import json
 import time
 import pathlib
-from lynch.hawk.manager import EnvManager
+from lynch.env_manager.manager import EnvManager
 
 @pytest.mark.integration
 def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
