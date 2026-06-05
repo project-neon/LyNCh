@@ -3,7 +3,7 @@
 import time
 import json
 import pytest
-from lynch.hawk.manager import EnvManager
+from lynch.env_manager.manager import EnvManager
 
 
 @pytest.mark.integration

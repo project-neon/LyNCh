@@ -3,7 +3,7 @@
 import pytest
 import json
 from unittest.mock import patch
-from lynch.hawk.manager import EnvManager
+from lynch.env_manager.manager import EnvManager
 
 @pytest.fixture
 def mock_config_path(tmp_path):
@@ -52,8 +52,8 @@ def test_apply_strategy_resolution():
     assert isinstance(result, dict)
 
 @pytest.mark.unit
-@patch("lynch.hawk.manager.EnvManager._load_file")
-@patch("lynch.hawk.manager.EnvManager._send_replacement")
+@patch("lynch.env_manager.manager.EnvManager._load_file")
+@patch("lynch.env_manager.manager.EnvManager._send_replacement")
 def test_setup_scenario_pipeline(mock_send, mock_load, mock_config_path):
     """Should execute the full pipeline: Load -> Apply -> Send."""
     # Setup side_effect: 
