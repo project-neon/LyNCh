@@ -5,7 +5,7 @@ import socket
 from unittest.mock import Mock, patch
 import pytest
 
-from lynch.loglady import StateBuffer, AutoRefProvider, NeonFCProvider
+from lynch.state_buffer import StateBuffer, AutoRefProvider, NeonFCProvider
 
 @pytest.mark.unit
 def test_state_buffer_init():
@@ -42,8 +42,8 @@ def test_autoref_provider_step_logic():
     mock_socket = Mock()
     
     # Mocking the socket.recv and Protobuf parsing
-    with patch("lynch.loglady.autoref_provider.TrackerWrapperPacket") as mock_packet_cls, \
-         patch("lynch.loglady.autoref_provider.MessageToJson") as mock_to_json:
+    with patch("lynch.state_buffer.autoref_provider.TrackerWrapperPacket") as mock_packet_cls, \
+         patch("lynch.state_buffer.autoref_provider.MessageToJson") as mock_to_json:
         
         mock_socket.recv.return_value = b"binary_data"
         mock_to_json.return_value = '{"uuid": "test-uuid"}'

@@ -2,7 +2,7 @@
 
 import time
 import pytest
-from lynch.loglady import StateBuffer, AutoRefProvider, NeonFCProvider
+from lynch.state_buffer import StateBuffer, AutoRefProvider, NeonFCProvider
 
 @pytest.mark.integration
 def test_state_buffer_receives_data_from_autoref(mock_autoref):
