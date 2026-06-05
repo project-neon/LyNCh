@@ -3,7 +3,7 @@
 import time
 import json
 import pytest
-from lynch.env_manager.manager import EnvManager
+from lynch.field.manager import Manager
 
 
 @pytest.mark.integration
@@ -24,7 +24,7 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim, tmp_path):
     config_file.write_text(json.dumps(config_data))
 
     # 2. Initialize EnvManager and trigger setup
-    hawk = EnvManager(config_path=str(config_file))
+    hawk = Manager(config_path=str(config_file))
     hawk.setup_scenario("test_scen")
 
     # 3. Verify packet arrival at mock server
@@ -62,7 +62,7 @@ def test_setup_scenario_with_uniform_noise(mock_grsim, tmp_path):
     config_file = tmp_path / "conf.json"
     config_file.write_text(json.dumps(config_data))
     
-    hawk = EnvManager(config_path=str(config_file))
+    hawk = Manager(config_path=str(config_file))
     hawk.setup_scenario("rand_scen")
     
     time.sleep(0.1)

@@ -1,2 +1,2 @@
 from .variance import DeterministicVariance
-from .manager import EnvManager
+from .manager import Manager

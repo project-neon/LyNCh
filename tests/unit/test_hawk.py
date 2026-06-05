@@ -3,7 +3,7 @@
 import pytest
 import json
 from unittest.mock import patch
-from lynch.env_manager.manager import EnvManager
+from lynch.field.manager import Manager
 
 @pytest.fixture
 def mock_config_path(tmp_path):
@@ -24,7 +24,7 @@ def mock_config_path(tmp_path):
 @pytest.mark.unit
 def test_init_loads_scenarios_dict(mock_config_path):
     """Should load the scenarios as a dictionary for O(1) lookup."""
-    manager = EnvManager(config_path=mock_config_path)
+    manager = Manager(config_path=mock_config_path)
     assert isinstance(manager.scenarios, dict)
     assert "penalty_kick" in manager.scenarios
     assert manager.scenarios["penalty_kick"]["strategy"] == "deterministic"
@@ -36,7 +36,7 @@ def test_load_file_static_helper(tmp_path):
     dummy_file = tmp_path / "dummy.json"
     dummy_file.write_text(json.dumps(data))
 
-    result = EnvManager._load_file(str(dummy_file))
+    result = Manager._load_file(str(dummy_file))
     assert result == data
 
 @pytest.mark.unit
@@ -46,14 +46,14 @@ def test_apply_strategy_resolution():
     variance = None
 
     # Testing resolution of 'deterministic'
-    result = EnvManager._apply_strategy(baseline, variance, "deterministic")
+    result = Manager._apply_strategy(baseline, variance, "deterministic")
     assert result == baseline
     assert result is not baseline
     assert isinstance(result, dict)
 
 @pytest.mark.unit
-@patch("lynch.env_manager.manager.EnvManager._load_file")
-@patch("lynch.env_manager.manager.EnvManager._send_replacement")
+@patch("lynch.field.manager.Manager._load_file")
+@patch("lynch.field.manager.Manager._send_replacement")
 def test_setup_scenario_pipeline(mock_send, mock_load, mock_config_path):
     """Should execute the full pipeline: Load -> Apply -> Send."""
     # Setup side_effect: 
@@ -71,7 +71,7 @@ def test_setup_scenario_pipeline(mock_send, mock_load, mock_config_path):
     baseline_dict = {"ball": {"x": 0.0, "y": 0.0}, "robots": {"yellow": [], "blue": []}}
     mock_load.side_effect = [config_dict, baseline_dict]
 
-    manager = EnvManager(config_path=mock_config_path)
+    manager = Manager(config_path=mock_config_path)
 
     # Trigger the pipeline
     manager.setup_scenario("penalty_kick")

@@ -16,7 +16,7 @@ _SELF_DIR = pathlib.Path(__file__).parent.resolve()
 _ROOT_DIR = _SELF_DIR.parent.parent
 DEFAULT_PATH = str(_ROOT_DIR / "scenarios" / "test_config.json")
 
-class EnvManager:
+class Manager:
     def __init__(self, config_path: str=DEFAULT_PATH):
         config = self._load_file(config_path)
         self.scenarios = config["scenarios"]
@@ -91,9 +91,9 @@ if __name__ == "__main__":
     config_to_use = str(manual_config) if manual_config.exists() else DEFAULT_PATH
     
     try:
-        manager = EnvManager(config_path=config_to_use)
+        manager = Manager(config_path=config_to_use)
     except Exception as e:
-        print(f"Error initializing EnvManager: {e}")
+        print(f"Error initializing Manager: {e}")
         exit(1)
 
     print(f"Loaded config: {config_to_use}")
