@@ -1,37 +1,35 @@
 from threading import Thread, Event
 from collections import deque
-from enum import Enum, auto
-from .provider import DataProvider
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class DataMode(Enum):
-    DIRECT = auto()
-    NEONFC = auto()
-
-
 class Buffer(Thread):
-    def __init__(self, provider: DataProvider):
+    def __init__(self, connector, parser):
         super().__init__(daemon=True)
-        self.provider = provider
+        self.connector = connector
+        self.parser = parser
         self.stop_event = Event()
         self._buffer = deque()
 
     def run(self):
         try:
-            self.provider.connect()
+            self.connector.connect()
             while not self.stop_event.is_set():
-                data = self.provider.step()
-                if data:
-                    self._buffer.append(data)
-
+                try:
+                    raw_data = self.connector.receive()
+                    if raw_data:
+                        frame = self.parser.parse_from_bytes(raw_data)
+                        if frame:
+                            self._buffer.append(frame)
+                except (ConnectionError, BrokenPipeError) as e:
+                    logger.error(f"Connection lost: {e}")
+                    break
         except Exception as e:
             logger.error(e)
-
         finally:
-            self.provider.close()
+            self.connector.close()
 
     def pull(self):
         if not self._buffer:

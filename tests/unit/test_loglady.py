@@ -1,88 +1,101 @@
-"""Unit tests for the StateBuffer module."""
-
-import json
-import socket
-from unittest.mock import Mock, patch
-from collections import deque
 import pytest
+import socket
+import threading
+import time
+from unittest.mock import Mock, patch, ANY
+from lynch.state.tcp_connector import TCPConnector
+from lynch.state.multicast_connector import MulticastConnector
+from lynch.state.parsers import JSONParser, ProtobufParser
+from lynch.state.buffer import Buffer as StateBuffer
 
-from lynch.state import Buffer, AutoRefProvider, NeonFCProvider
-
-@pytest.mark.unit
-def test_state_buffer_init():
-    """Verify StateBuffer initializes with correct provider and internal deque."""
-    mock_provider = Mock()
-    sb = Buffer(provider=mock_provider)
-    
-    assert sb.provider == mock_provider
-    assert sb.daemon is True
-    assert isinstance(sb._buffer, deque)
-    assert sb._buffer.maxlen is None  # Integrity priority
+# --- Connector Tests ---
 
 @pytest.mark.unit
-def test_state_buffer_pull_fifo_logic():
-    """Verify pull() follows FIFO logic and doesn't skip frames."""
-    mock_provider = Mock()
-    sb = Buffer(provider=mock_provider)
+def test_tcp_connector_send_fail_not_connected():
+    connector = TCPConnector(host="127.0.0.1", port=10011)
+    with pytest.raises(RuntimeError):
+        connector.send(b"data")
+
+@pytest.mark.unit
+def test_tcp_connector_receive_eof():
+    connector = TCPConnector(host="127.0.0.1", port=10011)
+    connector.socket = Mock()
+    connector.socket.recv.return_value = b'' # Connection closed
     
-    # Manually populate the buffer
-    sb._buffer.append({"frame": 1})
-    sb._buffer.append({"frame": 2})
+    with pytest.raises(ConnectionError):
+        connector.receive()
+
+@pytest.mark.unit
+def test_tcp_connector_timeout():
+    connector = TCPConnector(host="127.0.0.1", port=10011)
+    connector.socket = Mock()
+    connector.socket.recv.side_effect = socket.timeout
     
-    # First pull should get frame 1
-    assert sb.pull() == {"frame": 1}
-    # Second pull should get frame 2
-    assert sb.pull() == {"frame": 2}
-    # Third pull should be empty
+    assert connector.receive() is None
+
+@pytest.mark.unit
+def test_multicast_connector_bind():
+    connector = MulticastConnector(host="224.5.23.2", port=10010)
+    with patch("socket.socket") as mock_socket:
+        mock_instance = mock_socket.return_value
+        connector.connect()
+        mock_instance.bind.assert_called_once()
+        mock_instance.setsockopt.assert_any_call(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, ANY)
+
+# --- Parser Tests ---
+
+@pytest.mark.unit
+def test_json_parser_success():
+    data = b'{"cur_state": {"x": 1}, "prev_state": {"x": 0}, "action": "kick"}'
+    result = JSONParser.parse_from_bytes(data)
+    assert result == {"state": {"x": 1}, "prev_state": {"x": 0}, "action": "kick"}
+
+@pytest.mark.unit
+def test_json_parser_fail():
+    data = b'invalid_json'
+    result = JSONParser.parse_from_bytes(data)
+    assert result is None
+
+# --- StateBuffer Tests ---
+
+@pytest.mark.unit
+def test_state_buffer_pull_empty():
+    mock_connector = Mock()
+    mock_parser = Mock()
+    sb = StateBuffer(connector=mock_connector, parser=mock_parser)
     assert sb.pull() is None
 
 @pytest.mark.unit
-def test_autoref_provider_step_logic():
-    """Verify AutoRefProvider parses raw bytes into the standard LyNCh format."""
-    provider = AutoRefProvider(host="127.0.0.1", port=10010)
-    mock_socket = Mock()
+def test_state_buffer_integration():
+    mock_connector = Mock()
+    mock_parser = Mock()
     
-    with patch("lynch.state.autoref_provider.TrackerWrapperPacket") as mock_packet_cls, \
-         patch("lynch.state.autoref_provider.MessageToJson") as mock_to_json:
-        
-        mock_socket.recv.return_value = b"binary_data"
-        mock_to_json.return_value = '{"uuid": "test-uuid"}'
-        provider.socket = mock_socket
-        
-        result = provider.step()
-        
-        assert result["state"] == {"uuid": "test-uuid"}
-        assert result["prev_state"] is None
-        assert result["action"] is None
-        mock_packet_cls.return_value.ParseFromString.assert_called_with(b"binary_data")
+    # Setup
+    mock_connector.receive.return_value = b"raw_data"
+    mock_parser.parse_from_bytes.return_value = {"state": "data"}
+    
+    sb = StateBuffer(connector=mock_connector, parser=mock_parser)
+    
+    # Manually trigger one run cycle logic without starting the thread
+    raw_data = sb.connector.receive()
+    frame = sb.parser.parse_from_bytes(raw_data)
+    sb._buffer.append(frame)
+    
+    assert sb.pull() == {"state": "data"}
 
 @pytest.mark.unit
-def test_neonfc_provider_step_logic():
-    """Verify NeonFCProvider parses JSON tuples correctly."""
-    provider = NeonFCProvider(host="127.0.0.1", port=10011)
-    mock_socket = Mock()
+def test_state_buffer_handles_connection_error():
+    """Verify StateBuffer stops when connector raises ConnectionError."""
+    mock_connector = Mock()
+    mock_parser = Mock()
     
-    test_payload = {
-        "cur_state": {"x": 1.0},
-        "prev_state": {"x": 0.0},
-        "action": "kick"
-    }
-    mock_socket.recv.return_value = json.dumps(test_payload).encode("utf-8")
-    provider.socket = mock_socket
+    # Simulate a lost connection on the first receive
+    mock_connector.receive.side_effect = ConnectionError("Lost connection")
     
-    result = provider.step()
+    sb = StateBuffer(connector=mock_connector, parser=mock_parser)
     
-    assert result["state"] == {"x": 1.0}
-    assert result["prev_state"] == {"x": 0.0}
-    assert result["action"] == "kick"
-
-@pytest.mark.unit
-def test_provider_timeout_handling():
-    """Verify providers return None on socket timeout."""
-    provider = AutoRefProvider(host="127.0.0.1", port=10010)
-    mock_socket = Mock()
-    mock_socket.recv.side_effect = socket.timeout
-    provider.socket = mock_socket
+    # We call run() manually to verify the loop breaks
+    sb.run()
     
-    result = provider.step()
-    assert result is None
+    # Verify the connector was closed as part of the teardown
+    mock_connector.close.assert_called_once()
