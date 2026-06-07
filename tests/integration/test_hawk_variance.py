@@ -20,14 +20,14 @@ def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
     # We will write a temp file there just for this test.
     import pathlib
     scenarios_dir = pathlib.Path(__file__).parent.parent.parent / "scenarios"
-    baseline_file = scenarios_dir / "integration_test_temp.json"
-    baseline_file.write_text(json.dumps(baseline_data))
+    template = scenarios_dir / "integration_test_temp.json"
+    template.write_text(json.dumps(baseline_data))
 
     try:
         config_data = {
             "scenarios": {
                 "rand_test": {
-                    "baseline_file": "scenarios/integration_test_temp.json",
+                    "template": "scenarios/integration_test_temp.json",
                     "strategy": "uniform_random",
                     "variance": {
                         "ball": {"x": (5.0, 5.0)}, # Forced offset of 5.0
@@ -57,21 +57,21 @@ def test_manager_resolves_and_applies_uniform_noise(mock_grsim, tmp_path):
 
     finally:
         # Cleanup temp file
-        if baseline_file.exists():
-            baseline_file.unlink()
+        if template.exists():
+            template.unlink()
 
 @pytest.mark.integration
 def test_manager_resolves_and_applies_gaussian_noise(mock_grsim, tmp_path):
     """Verify that Manager correctly applies GaussianRandomVariance from config."""
     scenarios_dir = pathlib.Path(__file__).parent.parent.parent / "scenarios"
-    baseline_file = scenarios_dir / "integration_test_temp_gauss.json"
-    baseline_file.write_text(json.dumps({"ball": {"x": 0.0, "y": 0.0}, "robots": {"yellow": [], "blue": []}}))
+    template = scenarios_dir / "integration_test_temp_gauss.json"
+    template.write_text(json.dumps({"ball": {"x": 0.0, "y": 0.0}, "robots": {"yellow": [], "blue": []}}))
 
     try:
         config_data = {
             "scenarios": {
                 "gauss_test": {
-                    "baseline_file": "scenarios/integration_test_temp_gauss.json",
+                    "template": "scenarios/integration_test_temp_gauss.json",
                     "strategy": "gaussian_random",
                     "variance": {"ball": {"x": 0.0001}} # Tiny noise, should stay near 0
                 }
@@ -88,6 +88,6 @@ def test_manager_resolves_and_applies_gaussian_noise(mock_grsim, tmp_path):
         assert abs(mock_grsim.last_packet.replacement.ball.x - 0.0) < 0.1
 
     finally:
-        if baseline_file.exists():
-            baseline_file.unlink()
+        if template.exists():
+            template.unlink()
 
