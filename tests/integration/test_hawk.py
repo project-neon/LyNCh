@@ -3,7 +3,7 @@
 import time
 import json
 import pytest
-from lynch.field.manager import Manager
+from lynch.field import Manager
 
 
 @pytest.mark.integration
@@ -14,8 +14,8 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim, tmp_path):
     config_data = {
         "scenarios": {
             "test_scen": {
-                "baseline_file": "scenarios/penalty_kick_positions.json",
-                "strategy": "deterministic",
+                "template": "scenarios/templates/penalty_kick_positions.json",
+                "strategy": "no_variance",
                 "variance": {}
             }
         }
@@ -53,8 +53,8 @@ def test_setup_scenario_with_uniform_noise(mock_grsim, tmp_path):
     config_data = {
         "scenarios": {
             "rand_scen": {
-                "baseline_file": "scenarios/penalty_kick_positions.json",
-                "strategy": "deterministic", # Keeping it deterministic for predictable assertion
+                "template": "scenarios/templates/penalty_kick_positions.json",
+                "strategy": "no_variance", # Keeping it deterministic for predictable assertion
                 "variance": {}
             }
         }

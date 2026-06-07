@@ -3,7 +3,7 @@
 import pytest
 import json
 from unittest.mock import patch
-from lynch.field.manager import Manager
+from lynch.field import Manager
 
 @pytest.fixture
 def mock_config_path(tmp_path):
@@ -11,8 +11,8 @@ def mock_config_path(tmp_path):
     config_data = {
         "scenarios": {
             "penalty_kick": {
-                "baseline_file": "penalty_kick_positions.json",
-                "strategy": "deterministic",
+                "template": "penalty_kick_positions.json",
+                "strategy": "no_variance",
                 "variance": {"ball": {"x": 0.1}}
             }
         }
@@ -27,7 +27,7 @@ def test_init_loads_scenarios_dict(mock_config_path):
     manager = Manager(config_path=mock_config_path)
     assert isinstance(manager.scenarios, dict)
     assert "penalty_kick" in manager.scenarios
-    assert manager.scenarios["penalty_kick"]["strategy"] == "deterministic"
+    assert manager.scenarios["penalty_kick"]["strategy"] == "no_variance"
 
 @pytest.mark.unit
 def test_load_file_static_helper(tmp_path):
@@ -45,8 +45,8 @@ def test_apply_strategy_resolution():
     baseline = {"ball": {"x": 1.0}}
     variance = None
 
-    # Testing resolution of 'deterministic'
-    result = Manager._apply_strategy(baseline, variance, "deterministic")
+    # Testing resolution of 'no_variance'
+    result = Manager._apply_strategy(baseline, variance, "no_variance")
     assert result == baseline
     assert result is not baseline
     assert isinstance(result, dict)
@@ -62,8 +62,8 @@ def test_setup_scenario_pipeline(mock_send, mock_load, mock_config_path):
     config_dict = {
         "scenarios": {
             "penalty_kick": {
-                "baseline_file": "base.json",
-                "strategy": "deterministic",
+                "template": "base.json",
+                "strategy": "no_variance",
                 "variance": {}
             }
         }

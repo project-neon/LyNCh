@@ -1,2 +1,2 @@
-from .variance import DeterministicVariance
+from .variance import NoVariance
 from .manager import Manager
