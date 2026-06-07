@@ -1,0 +1,19 @@
+{
+    "scenarios": {
+        "option_1": {
+            "baseline_file": "scenarios/pos_1.json",
+            "strategy": "deterministic",
+            "variance": {}
+        },
+        "option_2": {
+            "baseline_file": "scenarios/pos_2.json",
+            "strategy": "deterministic",
+            "variance": {}
+        },
+        "option_3": {
+            "baseline_file": "scenarios/pos_3.json",
+            "strategy": "deterministic",
+            "variance": {}
+        }
+    }
+}
