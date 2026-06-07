@@ -1,2 +1,2 @@
-from .variance import NoVariance
+from .variance import NoVariance, UniformRandomVariance, GaussianRandomVariance
 from .manager import Manager

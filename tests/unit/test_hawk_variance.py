@@ -2,7 +2,7 @@
 
 import pytest
 from lynch.field.variance import (
-    DeterministicVariance,
+    NoVariance,
     UniformRandomVariance,
     GaussianRandomVariance
 )
@@ -25,7 +25,7 @@ def sample_baseline():
 @pytest.mark.unit
 def test_deterministic_strategy_immutability(sample_baseline):
     """Verify that deterministic strategy returns a deep copy and changes nothing."""
-    strategy = DeterministicVariance()
+    strategy = NoVariance()
     result = strategy.apply(sample_baseline, {"ball": {"x": 9.9}})
     
     assert result == sample_baseline
