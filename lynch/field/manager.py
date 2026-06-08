@@ -88,7 +88,7 @@ class Manager:
         tmpl_path = scenario_config["template"]
         variance_config = scenario_config["variance"]
         strategy = scenario_config["strategy"]
-        seed = scenario_config["seed"]
+        seed = scenario_config.get("seed")
 
         template = self._load_file(str(_ROOT_DIR / tmpl_path))
         noisy_pos = self._apply_strategy(template, variance_config, strategy, seed)
