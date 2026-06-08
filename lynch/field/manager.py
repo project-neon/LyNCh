@@ -91,5 +91,5 @@ class Manager:
         seed = scenario_config["seed"]
 
         template = self._load_file(str(_ROOT_DIR / tmpl_path))
-        noisy_pos = self._apply_strategy(template, variance_config, strategy)
+        noisy_pos = self._apply_strategy(template, variance_config, strategy, seed)
         self._send_replacement(noisy_pos)
