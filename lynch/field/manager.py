@@ -1,7 +1,7 @@
 import json
 import socket
 import pathlib
-from typing import Dict
+from typing import Dict, Optional
 from protocols.sim.grSim_Packet_pb2 import grSim_Packet
 from protocols.sim.grSim_Replacement_pb2 import grSim_Replacement
 from .variance import (
@@ -45,8 +45,13 @@ class Manager:
         return result
 
     @staticmethod
-    def _apply_strategy(template: Dict, variance: Dict | None, strategy: str) -> Dict:
-        strg = STRATEGIES[strategy]()
+    def _apply_strategy(
+            template: Dict,
+            variance: Optional[Dict],
+            strategy: str,
+            seed: Optional[int] = None
+    ) -> Dict:
+        strg = STRATEGIES[strategy](seed=seed)
         return strg.apply(template, variance)
 
     def _send_replacement(self, positions: Dict):
@@ -83,6 +88,7 @@ class Manager:
         tmpl_path = scenario_config["template"]
         variance_config = scenario_config["variance"]
         strategy = scenario_config["strategy"]
+        seed = scenario_config["seed"]
 
         template = self._load_file(str(_ROOT_DIR / tmpl_path))
         noisy_pos = self._apply_strategy(template, variance_config, strategy)

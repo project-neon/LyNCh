@@ -3,6 +3,7 @@
         "penalty_kick_uniform": {
             "template": "scenarios/templates/penalty_kick_positions.json",
             "strategy": "uniform_random",
+            "seed": 84,
             "variance": {
                 "ball": {
                     "x": [-0.2, 0.2],
@@ -21,6 +22,7 @@
         "penalty_kick_gaussian": {
             "template": "scenarios/templates/penalty_kick_positions.json",
             "strategy": "gaussian_random",
+            "seed": 55,
             "variance": {
                 "ball": {
                     "x": 0.05,

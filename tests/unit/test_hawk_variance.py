@@ -110,3 +110,58 @@ def test_robot_list_missing_id_handling():
     # Should not crash and return baseline
     result = strategy.apply(baseline, noise)
     assert result == baseline
+
+@pytest.mark.unit
+def test_uniform_determinism(sample_baseline):
+    """Verify that UniformRandomVariance produces identical results with the same seed."""
+    noise = {"ball": {"x": (-10.0, 10.0)}}
+    
+    strat1 = UniformRandomVariance(seed=123)
+    strat2 = UniformRandomVariance(seed=123)
+    
+    res1 = strat1.apply(sample_baseline, noise)
+    res2 = strat2.apply(sample_baseline, noise)
+    
+    assert res1 == res2
+
+@pytest.mark.unit
+def test_gaussian_determinism(sample_baseline):
+    """Verify that GaussianRandomVariance produces identical results with the same seed."""
+    noise = {"ball": {"x": 5.0}}
+    
+    strat1 = GaussianRandomVariance(seed=999)
+    strat2 = GaussianRandomVariance(seed=999)
+    
+    res1 = strat1.apply(sample_baseline, noise)
+    res2 = strat2.apply(sample_baseline, noise)
+    
+    assert res1 == res2
+
+@pytest.mark.unit
+def test_seed_loading_from_config():
+    """Simulate loading strategy config and verify seed usage."""
+    # This simulates how Manager.setup_scenario would extract and apply config
+    config = {
+        "strategy": "uniform_random",
+        "seed": 789
+    }
+    
+    # 1. Simulate the extraction of strategy + seed
+    strat_cls = UniformRandomVariance
+    seed = config.get("seed")
+    
+    # 2. Instantiate with seed
+    strategy = strat_cls(seed=seed)
+    
+    # 3. Verify determinism
+    noise = {"ball": {"x": (-10.0, 10.0)}}
+    sample = {"ball": {"x": 0.0}}
+    
+    res1 = strategy.apply(sample, noise)
+    
+    # Compare against fresh instance with same seed
+    strat2 = UniformRandomVariance(seed=789)
+    res2 = strat2.apply(sample, noise)
+    
+    assert res1 == res2
+    assert strategy._rng.random() == strat2._rng.random()

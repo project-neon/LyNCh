@@ -5,6 +5,9 @@ from copy import deepcopy
 
 
 class BaseVariance(ABC):
+    def __init__(self, seed: Optional[int] = None):
+        self.__seed = seed
+
     """Abstract interface for all variance strategies."""
     @abstractmethod
     def apply(self, baseline: Dict, noise: Optional[Dict]) -> Dict:
@@ -23,6 +26,7 @@ class RandomVariance(BaseVariance):
     Matches list items by 'id' property and protects metadata from perturbations.
     """
     def __init__(self, seed=None):
+        super().__init__(seed)
         self._rng = Random(seed)
 
     @abstractmethod
