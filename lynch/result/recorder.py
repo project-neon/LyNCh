@@ -7,7 +7,19 @@ from datetime import datetime
 
 
 class Recorder:
+    """
+    Logger for DRL batches that manages scenario-level
+    persistence and real-time history buffering for evaluation.
+    """
+
     def __init__(self, dir_path: str, max_history_size: int = 100) -> None:
+        """
+        Initializes the batch directory and the evaluation sliding window.
+
+        Args:
+            dir_path: Path to the directory where all batch results will be stored.
+            max_history_size: Maximum number of recent transitions kept in RAM.
+        """
         self.__dir = Path(dir_path)
         self.__dir.mkdir(parents=True, exist_ok=True)
         self.__history = deque(maxlen=max_history_size)
@@ -15,15 +27,27 @@ class Recorder:
 
     @property
     def history(self):
+        """Returns the current scenario's sliding window history as a list."""
         return list(self.__history)
 
     def start_scenario(self, scenario_name: str) -> None:
-        now = datetime.now().strftime('%m%d%H%M')
+        """
+        Creates a new unique .jsonl file for a specific scenario run.
+        Uses a timestamp and unique ID to prevent filename collisions.
+        """
+        now = datetime.now().strftime('%m%d%H%M') # Ex: 06091425
         tid = uuid.uuid4().hex[:8]
         file_path = self.__dir / f"history_{scenario_name}_{now}_{tid}.jsonl"
         self.__current_file = open(file_path, "a", buffering=1, encoding="utf-8")
 
     def put(self, transition: Dict) -> None:
+        """
+        Validates and records a transition.
+        Persists to disk if a scenario is active and appends to the RAM buffer.
+
+        Raises:
+            ValueError: If the transition dict is missing required RL keys.
+        """
         missing = {"s", "s_prime", "a", "r"} - transition.keys()
         if missing:
             raise ValueError(f"Transition missing required keys: {missing}")
@@ -33,12 +57,17 @@ class Recorder:
         self.__history.append(transition)
 
     def end_scenario(self) -> None:
+        """Closes the current scenario file handle and resets the RAM buffer."""
         if self.__current_file is not None:
             self.__current_file.close()
             self.__current_file = None
         self.__history.clear()
 
     def summarize_batch(self):
+        """
+        Aggregates metrics from all .jsonl history files in the batch directory.
+        Generates a summary.json file with totals and averages for both agents.
+        """
         summary_file = self.__dir / "summary.json"
 
         summary = {
@@ -59,17 +88,18 @@ class Recorder:
 
                     last_transition = json.loads(last_line[0])
 
-                    summary["tests_ran"] += 1
-                    rewards = last_transition.get("r", {})
+                summary["tests_ran"] += 1
+                rewards = last_transition.get("r", {})
 
-                    r_striker = rewards.get("striker", 0.0)
-                    r_keeper = rewards.get("keeper", 0.0)
+                r_striker = rewards.get("striker", 0.0)
+                r_keeper = rewards.get("keeper", 0.0)
 
-                    summary["striker_total_score"] += r_striker
-                    summary["keeper_total_score"] += r_keeper
+                summary["striker_total_score"] += r_striker
+                summary["keeper_total_score"] += r_keeper
 
-                    if r_striker != 0 and r_keeper != 0:
-                        summary["tests_passed"] += 1
+                if r_striker != 0 and r_keeper != 0:
+                    summary["tests_passed"] += 1
+
             except (json.JSONDecodeError, IOError, IndexError):
                 continue
 
