@@ -17,17 +17,17 @@ LyNCh is a testing framework for orchestrating and evaluating robotic soccer sim
 │                           Cooper                                │
 │  (Orchestrates workflow, coordinates all components)            │
 └─────────────────────────────────────────────────────────────────┘
-         │              │              │              │
-         ▼              ▼              ▼              ▼
-┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-│  LogLady    │ │    Giant    │ │   Diane     │ │    Hawk     │
-│             │ │             │ │             │ │             │
-│ - Polls     │ │ - Checks    │ │ - JSONL     │ │ - Loads     │
-│   AutoRef   │ │   end con-  │ │   storage   │ │   scenarios │
-│ - Thread-   │ │   ditions   │ │ - CSV       │ │ - Applies   │
-│   safe      │ │ - Signals   │ │   export    │ │   variance  │
-│   queue     │ │   completion│ │             │ │             │
-└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+       │                │                │               │
+       ▼                ▼                ▼               ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│   LogLady   │  │    Giant    │  │    Diane    │  │    Hawk     │
+│             │  │             │  │             │  │             │
+│ - Polls     │  │ - Checks    │  │ - JSONL     │  │ - Loads     │
+│   AutoRef   │  │   end con-  │  │   storage   │  │   scenarios │
+│ - Thread-   │  │   ditions   │  │ - CSV       │  │ - Applies   │
+│   safe      │  │ - Signals   │  │   export    │  │   variance  │
+│   queue     │  │   completion│  │             │  │             │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
 ```
 
 ### Components

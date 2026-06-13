@@ -96,43 +96,51 @@ class MockAutoRefServer:
 
 
 class MockNeonFCServer:
-    """Mock NeonFC server that sends state/action tuples."""
+    """Mock NeonFC server that sends state/action tuples over TCP."""
 
     def __init__(self, host: str, port: int):
         self.host = host
         self.port = port
-        self.socket: socket.socket | None = None
+        self.server_socket: socket.socket | None = None
         self.running = threading.Event()
         self.message_count = 0
 
     def start(self) -> None:
-        """Start sending UDP packets in background thread."""
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        """Start accepting TCP connections in a background thread."""
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(1)
         self.running.set()
-        thread = threading.Thread(target=self._send_packets, daemon=True)
+        thread = threading.Thread(target=self._run_server, daemon=True)
         thread.start()
 
     def stop(self) -> None:
-        """Stop sending packets."""
+        """Stop server and close socket."""
         self.running.clear()
-        if self.socket:
-            self.socket.close()
+        if self.server_socket:
+            self.server_socket.close()
 
-    def _send_packets(self) -> None:
-        """Send JSON tuples periodically."""
+    def _run_server(self) -> None:
+        """Accept connection and send JSON tuples."""
         while self.running.is_set():
             try:
-                payload = {
-                    "cur_state": {"frame": self.message_count},
-                    "prev_state": {"frame": self.message_count - 1},
-                    "action": f"action-{self.message_count}"
-                }
-                data = json.dumps(payload).encode("utf-8")
-                self.socket.sendto(data, (self.host, self.port))
-                self.message_count += 1
-            except (OSError, socket.error):
-                break
-            time.sleep(0.01)
+                # Set a timeout on accept to allow checking running event
+                self.server_socket.settimeout(0.1)
+                conn, _ = self.server_socket.accept()
+                with conn:
+                    while self.running.is_set():
+                        payload = {
+                            "cur_state": {"frame": self.message_count},
+                            "prev_state": {"frame": self.message_count - 1},
+                            "action": f"action-{self.message_count}"
+                        }
+                        data = json.dumps(payload).encode("utf-8")
+                        conn.sendall(data)
+                        self.message_count += 1
+                        time.sleep(0.01)
+            except (socket.timeout, OSError):
+                continue
 
 
 @pytest.fixture
