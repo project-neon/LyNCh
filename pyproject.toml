@@ -34,12 +34,6 @@ filterwarnings = [
     'ignore:.* descriptors is going to go away:DeprecationWarning'
 ]
 
-filterwarnings = [
-    'ignore:Call to deprecated create function:DeprecationWarning',
-    'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated:DeprecationWarning',
-    'ignore:.* descriptors is going to go away:DeprecationWarning'
-]
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

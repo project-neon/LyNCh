@@ -15,10 +15,14 @@ def mock_tcp_server(host, port, stop_event):
         conn, _ = s.accept()
         with conn:
             while not stop_event.is_set():
-                # Echo data back or just consume
-                data = conn.recv(1024)
-                if data:
+                try:
+                    # Echo data back or just consume
+                    data = conn.recv(1024)
+                    if not data:
+                        break
                     conn.sendall(data)
+                except (ConnectionResetError, BrokenPipeError):
+                    break
     except socket.timeout:
         pass
     finally:
