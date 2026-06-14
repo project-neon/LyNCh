@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
+from typing import Protocol, runtime_checkable
 
-class Assessment(ABC):
-    @abstractmethod
+@runtime_checkable
+class Assessment(Protocol):
     def is_triggered(self, cur_state, history) -> bool:
-        raise NotImplementedError
+        pass

@@ -39,4 +39,4 @@ class AssessmentRegistry:
                 continue
             importlib.import_module(f"{pkg_module.__name__}.{module_name}")
 
-registry = AssessmentRegistry()
+assessment_registry = AssessmentRegistry()

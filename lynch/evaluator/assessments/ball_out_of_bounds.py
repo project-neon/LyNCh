@@ -1,8 +1,7 @@
-from .assessment import Assessment
-from .registry import registry
+from .registry import assessment_registry
 
-@registry.register("ball_out_of_bounds")
-class BallOutOfBounds(Assessment):
+@assessment_registry.register("ball_out_of_bounds")
+class BallOutOfBounds:
     def __init__(self):
         self.field_half_x = 4.5
         self.field_half_y = 3.0

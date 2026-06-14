@@ -1,8 +1,7 @@
-from .assessment import Assessment
-from .registry import registry
+from .registry import assessment_registry
 
-@registry.register("goal_scored")
-class GoalScored(Assessment):
+@assessment_registry.register("goal_scored")
+class GoalScored:
     def __init__(self):
         self.goal_x = 4.5
         self.goal_y = 0.5

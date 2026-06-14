@@ -1,4 +1,4 @@
 from .assessment import Assessment
-from .registry import registry
+from .registry import assessment_registry
 
-registry.autodiscover(__name__)
+assessment_registry.autodiscover(__name__)

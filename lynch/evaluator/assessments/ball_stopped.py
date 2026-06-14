@@ -1,9 +1,8 @@
 from typing import Dict
-from .assessment import Assessment
-from .registry import registry
+from .registry import assessment_registry
 
-@registry.register("ball_stopped")
-class BallStopped(Assessment):
+@assessment_registry.register("ball_stopped")
+class BallStopped:
     def __init__(self):
         self.speed_threshold = 0.05
         self.frame_to_wait = 10
