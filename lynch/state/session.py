@@ -25,19 +25,20 @@ def initialize_session(
         vision_host: Optional[str] = None,
         vision_port: Optional[int] = None,
 ):
-    tcp_connector = TCPConnector(neon_host, neon_port)
+    signal_connector = TCPConnector(neon_host, neon_port)
 
     if mode == DataMode.NEONFC:
-        buffer = Buffer(connector=tcp_connector, parser=JSONParser)
+        data_connector = TCPConnector(neon_host, neon_port)
+        buffer = Buffer(connector=data_connector, parser=JSONParser)
 
     elif mode == DataMode.DIRECT:
         if not vision_host or not vision_port:
             raise ValueError("Vision host/port required for DIRECT mode.")
 
-        multicast_connector = MulticastConnector(vision_host, vision_port)
-        buffer = Buffer(connector=multicast_connector, parser=ProtobufParser)
+        data_connector = MulticastConnector(vision_host, vision_port)
+        buffer = Buffer(connector=data_connector, parser=ProtobufParser)
 
     else:
         raise ValueError(f"Unknown data mode: {mode}")
 
-    return Session(buffer=buffer, connector=tcp_connector)
+    return Session(buffer=buffer, connector=signal_connector)
