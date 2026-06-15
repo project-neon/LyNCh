@@ -1,3 +1,4 @@
+from typing import Dict
 from ..registry import assessment_registry
 
 @assessment_registry.register("goal_scored")
@@ -14,3 +15,9 @@ class GoalScored:
             ball.get("x") >= self.goal_x - self.tolerance and
             -self.goal_y <= ball.get("y") <= self.goal_y
         )
+
+    def get_rewards(self) -> Dict[str, float]:
+        return {
+            "striker": 1.0,
+            "keeper": -1.0,
+        }

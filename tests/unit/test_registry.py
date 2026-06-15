@@ -3,9 +3,11 @@ from unittest.mock import MagicMock, patch
 from lynch.evaluator.assessments.assessment import Assessment
 from lynch.evaluator.registry import AssessmentRegistry
 
-class MockAssessment(Assessment):
+class MockAssessment:
     def is_triggered(self, cur_state, history) -> bool:
         return False
+    def get_rewards(self):
+        return {"striker": 0.0, "keeper": 0.0}
 
 def test_registry_register_and_get():
     registry = AssessmentRegistry()
@@ -45,13 +47,6 @@ def test_registry_autodiscover(mock_iter):
     
     mock_iter.return_value = [ (None, "mod1", None), (None, "registry", None) ]
     
-    # First call is the package itself, second is the module inside.
-    # The autodiscover function uses importlib.import_module(package_path)
-    # The relative path logic in autodiscover might be changing the call args.
-    
     with patch("importlib.import_module", return_value=mock_pkg) as mock_import:
         registry.autodiscover("fake.package")
-        
-        # Check that mod1 was imported with absolute path
-        # The first call was the package itself, second should be mod1
         mock_import.assert_any_call("fake.package.mod1")

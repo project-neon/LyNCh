@@ -1,4 +1,5 @@
 from ..registry import assessment_registry
+from typing import Dict
 
 @assessment_registry.register("ball_out_of_bounds")
 class BallOutOfBounds:
@@ -15,3 +16,9 @@ class BallOutOfBounds:
             -self.field_half_x <= x <= self.field_half_x and
             -self.field_half_y <= y <= self.field_half_y
         )
+
+    def get_rewards(self) -> Dict[str, float]:
+        return {
+            "striker": -1.0,
+            "keeper": 1.0,
+        }

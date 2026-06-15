@@ -19,3 +19,9 @@ class BallStopped:
         vx = ball.get("vx")
         vy = ball.get("vy")
         return (vx**2 + vy**2)**0.5
+
+    def get_rewards(self) -> Dict[str, float]:
+        return {
+            "striker": -1.0,
+            "keeper": 1.0,
+        }
