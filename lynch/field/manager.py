@@ -1,6 +1,4 @@
-import json
 import socket
-import pathlib
 from typing import Dict, Optional
 from protocols.sim.grSim_Packet_pb2 import grSim_Packet
 from protocols.sim.grSim_Replacement_pb2 import grSim_Replacement
@@ -18,31 +16,19 @@ STRATEGIES = {
     "gaussian_random": GaussianRandomVariance,
 }
 
-_SELF_DIR = pathlib.Path(__file__).parent.resolve()
-_ROOT_DIR = _SELF_DIR.parent.parent
-DEFAULT_PATH = str(_ROOT_DIR / "scenarios" / "profiles" / "test_config.json")
 
 class Manager:
-    def __init__(self, config_path: str=DEFAULT_PATH):
-        config = self._load_file(config_path)
-        self.scenarios = config["scenarios"]
-
-        self.socket = self._create_socket()
+    def __init__(self):
+        self.__socket = self._create_socket()
 
     def __del__(self):
-        if hasattr(self, "socket") and self.socket:
-            self.socket.close()
+        if hasattr(self, "socket") and self.__socket:
+            self.__socket.close()
 
     @staticmethod
     def _create_socket() -> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         return sock
-
-    @staticmethod
-    def _load_file(file_path: str) -> Dict:
-        with open(file_path, "r") as f:
-            result = json.load(f)
-        return result
 
     @staticmethod
     def _apply_strategy(
@@ -75,21 +61,17 @@ class Manager:
         packet.replacement.CopyFrom(repl)
 
         try:
-            self.socket.sendto(
+            self.__socket.sendto(
                 packet.SerializeToString(),
                 (GRSIM_HOST, GRSIM_PORT)
             )
         except Exception as e:
             print(f"Failed to send to grSim: {e}")
 
-    def setup_scenario(self, scenario_id):
-        scenario_config = self.scenarios.get(scenario_id)
-
-        tmpl_path = scenario_config["template"]
+    def setup_scenario(self, template: Dict, scenario_config: Dict):
         variance_config = scenario_config["variance"]
         strategy = scenario_config["strategy"]
         seed = scenario_config.get("seed")
 
-        template = self._load_file(str(_ROOT_DIR / tmpl_path))
         noisy_pos = self._apply_strategy(template, variance_config, strategy, seed)
         self._send_replacement(noisy_pos)
