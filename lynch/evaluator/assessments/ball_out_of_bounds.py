@@ -1,4 +1,4 @@
-from .registry import assessment_registry
+from ..registry import assessment_registry
 
 @assessment_registry.register("ball_out_of_bounds")
 class BallOutOfBounds:

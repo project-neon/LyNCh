@@ -1,4 +1,4 @@
-from .registry import assessment_registry
+from ..registry import assessment_registry
 
 @assessment_registry.register("goal_scored")
 class GoalScored:

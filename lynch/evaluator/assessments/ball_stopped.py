@@ -1,5 +1,5 @@
 from typing import Dict
-from .registry import assessment_registry
+from ..registry import assessment_registry
 
 @assessment_registry.register("ball_stopped")
 class BallStopped:

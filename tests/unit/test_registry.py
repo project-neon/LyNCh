@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from lynch.evaluator.assessments.assessment import Assessment
-from lynch.evaluator.assessments.registry import AssessmentRegistry
+from lynch.evaluator.registry import AssessmentRegistry
 
 class MockAssessment(Assessment):
     def is_triggered(self, cur_state, history) -> bool:
@@ -27,12 +27,12 @@ def test_registry_load():
     @registry.register("a2")
     class A2(MockAssessment): pass
     
-    # load() should return instances now
-    instances = registry.load(["a1", "a2"])
-    
-    assert len(instances) == 2
-    assert isinstance(instances[0], A1)
-    assert isinstance(instances[1], A2)
+    # load() instantiates and stores internally
+    registry.load(["a1", "a2"])
+
+    assert len(registry._loaded) == 2
+    assert isinstance(registry._loaded[0], A1)
+    assert isinstance(registry._loaded[1], A2)
 
 @patch("pkgutil.iter_modules")
 def test_registry_autodiscover(mock_iter):
