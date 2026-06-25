@@ -1,3 +1,4 @@
+import json
 import pytest
 import socket
 import threading
@@ -42,19 +43,54 @@ def test_multicast_connector_bind():
         mock_instance.bind.assert_called_once()
         mock_instance.setsockopt.assert_any_call(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, ANY)
 
+@pytest.mark.unit
+def test_multicast_receive_zero_length():
+    """Zero-length UDP datagrams should return None, not propagate."""
+    connector = MulticastConnector(host="224.5.23.2", port=10010)
+    connector.socket = Mock()
+    connector.socket.recv.return_value = b""
+    assert connector.receive() is None
+
+@pytest.mark.unit
+def test_multicast_receive_timeout():
+    """receive() should return None on socket timeout."""
+    connector = MulticastConnector(host="224.5.23.2", port=10010)
+    connector.socket = Mock()
+    connector.socket.recv.side_effect = socket.timeout
+    assert connector.receive() is None
+
 # --- Parser Tests ---
 
 @pytest.mark.unit
 def test_json_parser_success():
-    data = b'{"cur_state": {"x": 1}, "prev_state": {"x": 0}, "action": "kick"}'
+    # 14-float state vector: 5 per robot (x, y, vx, vy, theta) + 4 for ball
+    cur_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0]
+    prev_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0]
+    data = json.dumps({"cur_state": cur_state, "prev_state": prev_state, "action": "kick"}).encode("utf-8")
     result = JSONParser.parse_from_bytes(data)
-    assert result == {"state": {"x": 1}, "prev_state": {"x": 0}, "action": "kick"}
+    assert result is not None
+    assert result["action"] == "kick"
+    assert result["state"]["ball"]["x"] == 1.0
+    assert result["state"]["ball"]["y"] == 2.0
+    assert result["prev_state"]["ball"]["x"] == 0.5
+    assert len(result["state"]["robots"]["blue"]) == 1
+    assert len(result["state"]["robots"]["yellow"]) == 1
 
 @pytest.mark.unit
 def test_json_parser_fail():
     data = b'invalid_json'
     result = JSONParser.parse_from_bytes(data)
     assert result is None
+
+@pytest.mark.unit
+def test_json_parser_short_vector():
+    """A vector with fewer than 14 elements should produce state=None, not raise."""
+    cur_state = [0.0, 0.0, 0.0]  # only 3 elements
+    data = json.dumps({"cur_state": cur_state, "prev_state": cur_state, "action": None}).encode("utf-8")
+    result = JSONParser.parse_from_bytes(data)
+    assert result is not None
+    assert result["state"] is None
+    assert result["prev_state"] is None
 
 # --- StateBuffer Tests ---
 

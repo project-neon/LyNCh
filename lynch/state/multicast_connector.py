@@ -30,8 +30,14 @@ class MulticastConnector:
         if not self.socket:
             raise RuntimeError("Provider not connected. Call connect() first.")
         try:
-            return self.socket.recv(4096)
+            data = self.socket.recv(4096)
+            if not data:
+                return None
+            return data
         except socket.timeout:
+            return None
+        except OSError as e:
+            logger.error(f"Error receiving multicast data: {e}")
             return None
 
     def close(self):

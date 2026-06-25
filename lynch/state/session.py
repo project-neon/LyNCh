@@ -21,14 +21,34 @@ class Session:
 def initialize_session(
         mode: DataMode,
         neon_host: str,
-        neon_port: int,
+        data_port: int,
+        signal_port: int,
         vision_host: Optional[str] = None,
         vision_port: Optional[int] = None,
-):
-    signal_connector = TCPConnector(neon_host, neon_port)
+) -> Session:
+    """
+    Factory that creates a State Session for the given DataMode.
+
+    Args:
+        mode: NEONFC (TCP + JSON) or DIRECT (Multicast UDP + Protobuf).
+        neon_host: Hostname for NeonFC connections.
+        data_port: Port for incoming state data.
+        signal_port: Port for signaling (START/STOP/metadata).
+        vision_host: Multicast address (DIRECT mode only).
+        vision_port: Multicast port (DIRECT mode only).
+
+    Returns:
+        A `Session` dataclass with `buffer` (data ingestion thread) and
+        `connector` (signal TCP connector).
+
+    Raises:
+        ValueError: If an unsupported DataMode is given or DIRECT mode
+                    is missing vision host/port.
+    """
+    signal_connector = TCPConnector(neon_host, signal_port)
 
     if mode == DataMode.NEONFC:
-        data_connector = TCPConnector(neon_host, neon_port)
+        data_connector = TCPConnector(neon_host, data_port)
         buffer = Buffer(connector=data_connector, parser=JSONParser)
 
     elif mode == DataMode.DIRECT:

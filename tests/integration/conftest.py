@@ -86,6 +86,7 @@ class MockAutoRefServer:
                 packet = TrackerWrapperPacket()
                 packet.uuid = f"test-packet-{self.message_count}"
                 packet.source_name = "MockAutoRef"
+                packet.tracked_frame.frame_number = self.message_count
                 data = packet.SerializeToString()
 
                 self.socket.sendto(data, (self.host, self.port))
@@ -122,7 +123,7 @@ class MockNeonFCServer:
             self.server_socket.close()
 
     def _run_server(self) -> None:
-        """Accept connection and send JSON tuples."""
+        """Accept connection and send JSON tuples with 14-float state vectors."""
         while self.running.is_set():
             try:
                 # Set a timeout on accept to allow checking running event
@@ -130,10 +131,17 @@ class MockNeonFCServer:
                 conn, _ = self.server_socket.accept()
                 with conn:
                     while self.running.is_set():
+                        # 14-float state vector: 5 per robot (x, y, vx, vy, theta) + 4 for ball
+                        cur_state = [
+                            0.0, 0.0, 0.0, 0.0, 0.0,   # blue goalkeeper (id=0)
+                            0.0, 0.0, 0.0, 0.0, 0.0,   # yellow striker (id=0)
+                            0.0, 0.0, 0.0, 0.0,        # ball
+                        ]
+                        prev_state = list(cur_state)
                         payload = {
-                            "cur_state": {"frame": self.message_count},
-                            "prev_state": {"frame": self.message_count - 1},
-                            "action": f"action-{self.message_count}"
+                            "cur_state": cur_state,
+                            "prev_state": prev_state,
+                            "action": {"0": {"target_pose": (0.0, 0.0, 0.0)}}
                         }
                         data = json.dumps(payload).encode("utf-8")
                         conn.sendall(data)

@@ -23,7 +23,7 @@ class Buffer(Thread):
                         frame = self.parser.parse_from_bytes(raw_data)
                         if frame:
                             self._buffer.append(frame)
-                except (ConnectionError, BrokenPipeError) as e:
+                except (ConnectionError, BrokenPipeError, RuntimeError, OSError) as e:
                     logger.error(f"Connection lost: {e}")
                     break
         except Exception as e:
