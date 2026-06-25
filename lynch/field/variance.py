@@ -20,48 +20,50 @@ class NoVariance(BaseVariance):
         return deepcopy(baseline)
 
 
-class RandomVariance(BaseVariance):
+class RandomVariance(BaseVariance, ABC):
     """
-    Engine for recursive additive noise.
-    Matches list items by 'id' property and protects metadata from perturbations.
+    Schema-driven additive noise injection.
+    Applies noise to ball (x, y) and robots (x, y, theta) matching by team and ID.
     """
     def __init__(self, seed=None):
         super().__init__(seed)
         self._rng = Random(seed)
 
     @abstractmethod
-    def _calculate_noise(self, args):
+    def _sample(self, args):
         """Sample distribution-specific noise value."""
         raise NotImplementedError
 
-    def _inject_recursive(self, baseline, noise) -> Any:
-        """Traverses trees to apply offsets to matching paths."""
-        if noise is None:
-            return baseline
+    def apply(self, baseline: Dict, noise: Optional[Dict]) -> Dict:
+        result = deepcopy(baseline)
 
-        if isinstance(baseline, dict):
-            if not isinstance(noise, dict):
-                return baseline
-            for key in baseline.keys():
-                if key == "id": # Preserve identity metadata
+        if not noise:
+            return result
+
+        # Ball noise: noise["ball"]["x"|"y"]
+        if "ball" in noise and "ball" in result:
+            ball_noise = noise["ball"]
+            for field in ("x", "y"):
+                if field in ball_noise:
+                    result["ball"][field] += self._sample(ball_noise[field])
+
+        # Robot noise: noise["robots"]["yellow"|"blue"]["id"]["x"|"y"|"theta"]
+        if "robots" in noise and "robots" in result:
+            robots_noise = noise["robots"]
+            for team in ("yellow", "blue"):
+                if team not in robots_noise:
                     continue
-                baseline[key] = self._inject_recursive(baseline[key], noise.get(key))
-        elif isinstance(baseline, list):
-            if not isinstance(noise, dict):
-                return baseline
-            for idx, item in enumerate(baseline):
-                if isinstance(item, dict) and "id" in item:
-                    # Match noise rule by Robot ID string-key
-                    item_id = str(item["id"])
-                    baseline[idx] = self._inject_recursive(item, noise.get(item_id))
-        elif isinstance(baseline, (int, float)):
-            # Apply sampled offset to numeric leaf nodes
-            baseline += self._calculate_noise(noise)
+                team_noise = robots_noise[team]
+                for robot in result["robots"][team]:
+                    if not isinstance(robot, dict) or "id" not in robot:
+                        continue
+                    rid = str(robot["id"])
+                    if rid in team_noise:
+                        for field in ("x", "y", "theta"):
+                            if field in team_noise[rid]:
+                                robot[field] += self._sample(team_noise[rid][field])
 
-        return baseline
-
-    def apply(self, baseline: Dict, noise: Dict) -> Dict:
-        return self._inject_recursive(deepcopy(baseline), noise)
+        return result
 
 
 class UniformRandomVariance(RandomVariance):
@@ -69,7 +71,7 @@ class UniformRandomVariance(RandomVariance):
     def __init__(self, seed=None):
         super().__init__(seed)
 
-    def _calculate_noise(self, args):
+    def _sample(self, args):
         return self._rng.uniform(*args)
 
 
@@ -78,5 +80,5 @@ class GaussianRandomVariance(RandomVariance):
     def __init__(self, seed=None):
         super().__init__(seed)
 
-    def _calculate_noise(self, args):
+    def _sample(self, args):
         return self._rng.gauss(0, args)

@@ -112,6 +112,24 @@ def test_robot_list_missing_id_handling():
     assert result == baseline
 
 @pytest.mark.unit
+def test_variance_missing_ball_key():
+    """Baseline without 'ball' key should not crash."""
+    strategy = UniformRandomVariance()
+    baseline = {"robots": {"yellow": [], "blue": []}}
+    noise = {"ball": {"x": (-1.0, 1.0)}, "robots": {"yellow": {}}}
+    result = strategy.apply(baseline, noise)
+    assert result == baseline
+
+@pytest.mark.unit
+def test_variance_missing_robots_key():
+    """Baseline without 'robots' key should not crash."""
+    strategy = UniformRandomVariance()
+    baseline = {"ball": {"x": 0.0, "y": 0.0}}
+    noise = {"robots": {"yellow": {}}}
+    result = strategy.apply(baseline, noise)
+    assert result == baseline
+
+@pytest.mark.unit
 def test_uniform_determinism(sample_baseline):
     """Verify that UniformRandomVariance produces identical results with the same seed."""
     noise = {"ball": {"x": (-10.0, 10.0)}}
