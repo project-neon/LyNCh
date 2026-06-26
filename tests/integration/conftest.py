@@ -87,6 +87,7 @@ class MockAutoRefServer:
                 packet.uuid = f"test-packet-{self.message_count}"
                 packet.source_name = "MockAutoRef"
                 packet.tracked_frame.frame_number = self.message_count
+                packet.tracked_frame.timestamp = self.message_count * 0.01
                 data = packet.SerializeToString()
 
                 self.socket.sendto(data, (self.host, self.port))
