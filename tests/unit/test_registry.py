@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
+from pkgutil import ModuleInfo
 from lynch.evaluator.registry import AssessmentRegistry
 
 class MockAssessment:
@@ -47,7 +48,10 @@ def test_registry_autodiscover(mock_iter):
     mock_pkg.__path__ = ["/dummy/path"]
     mock_pkg.__name__ = "fake.package"
 
-    mock_iter.return_value = [ (None, "mod1", None), (None, "registry", None) ]
+    mock_iter.return_value = [
+        ModuleInfo(None, "mod1", False),
+        ModuleInfo(None, "registry", False),
+    ]
 
     with patch("importlib.import_module", return_value=mock_pkg) as mock_import:
         registry.autodiscover("fake.package")

@@ -79,8 +79,6 @@ class AssessmentRegistry:
     def autodiscover(self, package: str) -> None:
         if package.startswith("."):
             caller_package = inspect.stack()[1].frame.f_globals["__name__"]
-            if "." in caller_package:
-                caller_package = caller_package.rsplit(".", 1)[0]
         else:
             caller_package = None
 
