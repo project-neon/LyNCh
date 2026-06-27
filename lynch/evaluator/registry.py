@@ -1,8 +1,20 @@
 import importlib
+import logging
 import pkgutil
 import inspect
+from dataclasses import dataclass
 from typing import Dict, Type, List
 from .assessments import Assessment
+
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TestResult:
+    is_terminal: bool
+    rewards: Dict[str, float]
+    reason: str
 
 
 class AssessmentRegistry:
@@ -28,13 +40,41 @@ class AssessmentRegistry:
             raise KeyError(f"Assessment '{name}' is not registered")
         return self._registry[name]
 
-    def load(self, names: List[str]) -> None:
-        """Instantiate assessments by name and store them for evaluation."""
-        self._loaded = [self.get(name)() for name in names]
+    def load(self, assessments: List) -> None:
+        """Instantiate assessments and store them for evaluation.
 
-    def should_end(self, cur_state: dict, history: List[dict]) -> bool:
-        """Return True if any loaded assessment is triggered."""
-        return any(a.is_triggered(cur_state, history) for a in self._loaded)
+        Each item can be a plain name string or a dict with ``name`` and
+        optional ``config`` keys:
+
+        - ``"GoalScored"`` — instantiated with no config
+        - ``{"name": "BallStopped", "config": {"speed_threshold": 0.1}}`` — config forwarded to ``__init__``
+        """
+        loaded = []
+        for item in assessments:
+            if isinstance(item, str):
+                loaded.append(self.get(item)())
+            elif isinstance(item, dict):
+                name = item["name"]
+                config = item.get("config", {})
+                loaded.append(self.get(name)(config=config))
+            else:
+                raise TypeError(f"Invalid assessment spec: {item!r}")
+        self._loaded = loaded
+
+    def evaluate(self, cur_state: dict, history: List[dict]) -> TestResult:
+        """Iterate loaded assessments; return the first terminal result, or a non-terminal default."""
+        for assessment in self._loaded:
+            if assessment.is_triggered(cur_state, history):
+                return TestResult(
+                    is_terminal=True,
+                    rewards=assessment.get_rewards(),
+                    reason=type(assessment).__name__,
+                )
+        return TestResult(
+            is_terminal=False,
+            rewards={"striker": 0.0, "keeper": 0.0},
+            reason="Running",
+        )
 
     def autodiscover(self, package: str) -> None:
         if package.startswith("."):
@@ -49,7 +89,10 @@ class AssessmentRegistry:
         for _, module_name, _ in pkgutil.iter_modules(pkg_module.__path__):
             if module_name in ["registry", "assessment"]:
                 continue
-            importlib.import_module(f"{pkg_module.__name__}.{module_name}")
+            try:
+                importlib.import_module(f"{pkg_module.__name__}.{module_name}")
+            except Exception as e:
+                logger.warning(f"Failed to import assessment module '{module_name}': {e}")
 
 
 assessment_registry = AssessmentRegistry()
