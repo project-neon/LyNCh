@@ -81,17 +81,27 @@ class Recorder:
             self.__current_file.write(json.dumps(transition) + "\n")
         self.__history.append(transition)
 
-    def end_scenario(self) -> None:
-        """Closes the current scenario file handle and resets the RAM buffer."""
+    def end_scenario(self) -> Optional[str]:
+        """Closes the current scenario file handle and resets the RAM buffer.
+
+        Returns:
+            The path of the closed history file, or None if no scenario was active.
+        """
+        path = None
         if self.__current_file is not None:
+            path = self.__current_file.name
             self.__current_file.close()
             self.__current_file = None
         self.__history.clear()
+        return path
 
-    def summarize_batch(self):
+    def summarize_batch(self) -> str:
         """
         Aggregates metrics from all .jsonl history files in the batch directory.
         Generates a summary.json file with totals and averages for both agents.
+
+        Returns:
+            The path to the generated summary.json file.
         """
         summary_file = self.__dir / "summary.json"
 
@@ -136,3 +146,5 @@ class Recorder:
 
         with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f)
+
+        return str(summary_file)
