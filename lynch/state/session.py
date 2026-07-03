@@ -21,8 +21,8 @@ class Session:
 def initialize_session(
         mode: DataMode,
         neon_host: str,
-        data_port: int,
-        signal_port: int,
+        data_port: Optional[int] = None,
+        signal_port: Optional[int] = None,
         vision_host: Optional[str] = None,
         vision_port: Optional[int] = None,
 ) -> Session:
