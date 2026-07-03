@@ -213,3 +213,29 @@ def test_summarize_batch_trailing_newline(temp_batch_dir, recorder):
 
     assert summary["tests_ran"] == 1
     assert summary["striker_total_score"] == 1.0
+
+
+def test_summarize_batch_pass_condition(temp_batch_dir, recorder):
+    """A test passes if at least one reward is non-zero (not requiring both)."""
+    # Scenario 1: only striker scored
+    recorder.start_scenario("striker_only", seed=1)
+    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": 0}})
+    recorder.end_scenario()
+
+    # Scenario 2: only keeper scored
+    recorder.start_scenario("keeper_only", seed=2)
+    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 1}})
+    recorder.end_scenario()
+
+    # Scenario 3: draw (both zero) — should NOT pass
+    recorder.start_scenario("draw", seed=3)
+    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
+    recorder.end_scenario()
+
+    recorder.summarize_batch()
+
+    with open(temp_batch_dir / "summary.json", "r") as f:
+        summary = json.load(f)
+
+    assert summary["tests_ran"] == 3
+    assert summary["tests_passed"] == 2  # striker_only + keeper_only, not draw
