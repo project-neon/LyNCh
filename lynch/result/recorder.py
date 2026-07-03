@@ -39,7 +39,7 @@ class Recorder:
 
     @property
     def current_file_path(self) -> str | None:
-        """Full path of the active history file, or None."""
+        """Filename (not full path) of the active history file, or None."""
         if self.__current_file is not None:
             return self.__current_file.name
         return None
@@ -85,11 +85,11 @@ class Recorder:
         """Closes the current scenario file handle and resets the RAM buffer.
 
         Returns:
-            The path of the closed history file, or None if no scenario was active.
+            The full path of the closed history file, or None if no scenario was active.
         """
         path = None
         if self.__current_file is not None:
-            path = self.__current_file.name
+            path = str(self.__current_file.name)
             self.__current_file.close()
             self.__current_file = None
         self.__history.clear()
@@ -133,7 +133,7 @@ class Recorder:
                 summary["striker_total_score"] += r_striker
                 summary["keeper_total_score"] += r_keeper
 
-                if r_striker != 0 and r_keeper != 0:
+                if r_striker != 0 or r_keeper != 0:
                     summary["tests_passed"] += 1
 
             except (json.JSONDecodeError, IOError, IndexError) as e:
