@@ -22,7 +22,7 @@ def runner(tmp_path):
         "  NEONFC:\n"
         "    host: 127.0.0.1\n"
         "    data_port: 10001\n"
-        "    signal_port: 10002\n"
+        "    control_port: 10002\n"
         "scenarios:\n"
         "  test:\n"
         "    template: template.yaml\n"

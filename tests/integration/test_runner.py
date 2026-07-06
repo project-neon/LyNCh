@@ -15,9 +15,9 @@ from lynch.runner import Runner
 class MockNeonFCServer:
     """Mock NeonFC server that handles data + signal on separate ports."""
 
-    def __init__(self, data_port=10015, signal_port=10016):
+    def __init__(self, data_port=10015, control_port=10016):
         self.data_port = data_port
-        self.signal_port = signal_port
+        self.control_port = control_port
         self.data_sock = None
         self.signal_sock = None
         self.running = False
@@ -36,7 +36,7 @@ class MockNeonFCServer:
         # Signal server (receives START/STOP/metadata)
         self.signal_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.signal_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.signal_sock.bind(("127.0.0.1", self.signal_port))
+        self.signal_sock.bind(("127.0.0.1", self.control_port))
         self.signal_sock.listen(5)
         threading.Thread(target=self._listen_signal, daemon=True).start()
 
@@ -108,7 +108,7 @@ class MockNeonFCServer:
 @pytest.mark.integration
 def test_runner_integration(tmp_path):
     # 1. Start mock NeonFC server (data + signal on separate ports)
-    mock = MockNeonFCServer(data_port=10015, signal_port=10016)
+    mock = MockNeonFCServer(data_port=10015, control_port=10016)
     mock.start()
     time.sleep(0.1)
 
@@ -130,7 +130,7 @@ def test_runner_integration(tmp_path):
             "NEONFC": {
                 "host": "127.0.0.1",
                 "data_port": 10015,
-                "signal_port": 10016,
+                "control_port": 10016,
             }
         },
         "scenarios": {

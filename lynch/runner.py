@@ -259,7 +259,7 @@ class Runner:
                 mode=self.__mode,
                 neon_host=common_host,
                 data_port=mode_cfg.get("data_port", 10001),
-                signal_port=mode_cfg.get("signal_port", 10002),
+                control_port=mode_cfg.get("control_port", 10002),
             )
         else:  # DIRECT
             return initialize_session(

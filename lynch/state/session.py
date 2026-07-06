@@ -22,7 +22,7 @@ def initialize_session(
         mode: DataMode,
         neon_host: str,
         data_port: Optional[int] = None,
-        signal_port: Optional[int] = None,
+        control_port: Optional[int] = None,
         vision_host: Optional[str] = None,
         vision_port: Optional[int] = None,
 ) -> Session:
@@ -33,7 +33,7 @@ def initialize_session(
         mode: NEONFC (TCP + JSON) or DIRECT (Multicast UDP + Protobuf).
         neon_host: Hostname for NeonFC connections.
         data_port: Port for incoming state data.
-        signal_port: Port for signaling (START/STOP/metadata).
+        control_port: Port for signaling (START/STOP/metadata).
         vision_host: Multicast address (DIRECT mode only).
         vision_port: Multicast port (DIRECT mode only).
 
@@ -45,7 +45,7 @@ def initialize_session(
         ValueError: If an unsupported DataMode is given or DIRECT mode
                     is missing vision host/port.
     """
-    signal_connector = TCPConnector(neon_host, signal_port)
+    signal_connector = TCPConnector(neon_host, control_port)
 
     if mode == DataMode.NEONFC:
         data_connector = TCPConnector(neon_host, data_port)
