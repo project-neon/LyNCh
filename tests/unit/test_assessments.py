@@ -1,4 +1,5 @@
 import pytest
+from time import sleep
 from lynch.evaluator.assessments.goal_scored import GoalScored
 from lynch.evaluator.assessments.ball_stopped import BallStopped
 from lynch.evaluator.assessments.ball_out_of_bounds import BallOutOfBounds
@@ -76,31 +77,40 @@ def test_ball_out_of_bounds():
 
 @pytest.mark.unit
 def test_time_limit():
+    from time import time
     from lynch.evaluator.assessments.time_limit import TimeLimit
-    limit = 10
     assessment = TimeLimit()
-    assessment.limit = limit # Force small limit for test
+    assessment.limit = 0.1  # 100ms limit for fast test
 
-    for _ in range(limit):
-        assert assessment.is_triggered({}, []) is False
-
-    assert assessment.is_triggered({}, []) is True
+    # Should not trigger immediately
+    assert assessment.is_triggered({}, []) is False
     assert assessment.get_rewards() == {"striker": -1.0, "keeper": 1.0}
 
 @pytest.mark.unit
 def test_time_limit_auto_reset():
-    """After triggering, the counter should auto-reset to 0."""
+    """After triggering, the timer should auto-reset for next episode."""
+    from unittest.mock import patch
     from lynch.evaluator.assessments.time_limit import TimeLimit
 
-    limit = 10
-    assessment = TimeLimit()
-    assessment.limit = limit
+    # Create a mock time that progresses
+    mock_time = [0.0]
 
-    # Trigger the limit
-    for _ in range(limit):
+    def fake_time():
+        return mock_time[0]
+
+    with patch("lynch.evaluator.assessments.time_limit.time", fake_time):
+        assessment = TimeLimit()
+        assessment.limit = 0.1  # 100ms
+
+        # Initially, not triggered (time is 0, same as start_time)
+        mock_time[0] = 0.0
         assert assessment.is_triggered({}, []) is False
-    # This call triggers and resets
-    assert assessment.is_triggered({}, []) is True
 
-    # Next call should be False again (counter reset to 0, not monotonically increasing)
-    assert assessment.is_triggered({}, []) is False
+        # After limit seconds, triggers and resets start_time
+        mock_time[0] = 0.15
+        assert assessment.is_triggered({}, []) is True
+
+        # After reset, start_time = 0.15, so need to advance again past limit
+        assert assessment.is_triggered({}, []) is False  # no time passed
+        mock_time[0] = 0.26  # 0.15 + 0.11 > 0.1 limit
+        assert assessment.is_triggered({}, []) is True  # triggers again
