@@ -39,13 +39,13 @@ def initialize_session(
 
     Returns:
         A `Session` dataclass with `buffer` (data ingestion thread) and
-        `connector` (signal TCP connector).
+        `connector` (control TCP connector).
 
     Raises:
         ValueError: If an unsupported DataMode is given or DIRECT mode
                     is missing vision host/port.
     """
-    signal_connector = TCPConnector(neon_host, control_port)
+    control_connector = TCPConnector(neon_host, control_port)
 
     if mode == DataMode.NEONFC:
         data_connector = TCPConnector(neon_host, data_port)
@@ -61,4 +61,4 @@ def initialize_session(
     else:
         raise ValueError(f"Unknown data mode: {mode}")
 
-    return Session(buffer=buffer, connector=signal_connector)
+    return Session(buffer=buffer, connector=control_connector)

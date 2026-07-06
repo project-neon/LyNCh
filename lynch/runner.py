@@ -102,10 +102,10 @@ class Runner:
         """Orchestrate the complete batch lifecycle."""
         ctx = self.__build_episode_context(command)
 
-        # Connect signal connector (for sending metadata/START/STOP)
+        # Connect control connector (for sending metadata/START/STOP)
         ctx.session.connector.connect()
 
-        # Send metadata to NeonFC Signal
+        # Send metadata to NeonFC control
         metadata = command.get("metadata", {})
         if metadata:
             ctx.session.connector.send(json.dumps(metadata).encode())
