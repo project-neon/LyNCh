@@ -17,7 +17,7 @@ class MulticastConnector:
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
         )
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((self.host, self.port))
+        self.socket.bind(("", self.port))
 
         self.socket.settimeout(0.1)
 

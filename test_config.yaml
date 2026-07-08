@@ -1,0 +1,39 @@
+network:
+  runner:
+    host: "127.0.0.1"
+    port: 10003
+  NEONFC:
+    host: "127.0.0.1"
+    signal_port: 10002
+    data_port: 10001
+  DIRECT:
+    host: "224.5.23.2"
+    port: "10010"
+
+scenarios:
+  penalty_kick_uniform:
+    template: "templates/penalty_kick_positions.yaml"
+    strategy: "uniform_random"
+    variance:
+      ball:
+        x: [-0.2, 0.2]
+        y: [-0.5, 0.5]
+      robots:
+        yellow:
+          "0":
+            x: [-0.1, 0.1]
+            theta: [-0.05, 0.05]
+    assessments: ["GoalScored", "TimeLimit", "BallStopped"]
+
+  penalty_kick_gaussian:
+    template: "templates/penalty_kick_positions.yaml"
+    strategy: "gaussian_random"
+    variance:
+      ball:
+        x: 0.05
+        y: 0.05
+      robots:
+        blue:
+          "0":
+            y: 0.1
+    assessments: ["GoalScored", "TimeLimit"]

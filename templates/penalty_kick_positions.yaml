@@ -1,0 +1,22 @@
+# Field template for Penalty Kick
+# Coordinates are in meters relative to the field center (0,0)
+
+ball:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+
+robots:
+  blue:
+    - id: 0
+      x: -2.0
+      y: 0.0
+      theta: 0.0
+      role: "keeper"
+
+  yellow:
+    - id: 0
+      x: 2.0
+      y: 0.0
+      theta: 3.1415
+      role: "striker"
