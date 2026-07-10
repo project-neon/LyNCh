@@ -145,7 +145,7 @@ class MockNeonFCServer:
                             "action": {"0": {"target_pose": (0.0, 0.0, 0.0)}}
                         }
                         data = json.dumps(payload).encode("utf-8")
-                        conn.sendall(data)
+                        conn.sendall(data + b"\n")
                         self.message_count += 1
                         time.sleep(0.01)
             except (socket.timeout, OSError):

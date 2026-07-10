@@ -23,7 +23,11 @@ scenarios:
           "0":
             x: [-0.1, 0.1]
             theta: [-0.05, 0.05]
-    assessments: ["GoalScored", "TimeLimit", "BallStopped"]
+    assessments: 
+      - "GoalScored"
+      - {"name": "TimeLimit", "config": {"limit": 5}}
+      - "BallStopped"
+      - "BallOutOfBounds"
 
   penalty_kick_gaussian:
     template: "templates/penalty_kick_positions.yaml"
@@ -36,4 +40,8 @@ scenarios:
         blue:
           "0":
             y: 0.1
-    assessments: ["GoalScored", "TimeLimit"]
+    assessments: 
+      - "GoalScored"
+      - {"name": "TimeLimit", "config": {"limit": 5}}
+      - "BallStopped"
+      - "BallOutOfBounds"
