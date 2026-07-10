@@ -186,12 +186,18 @@ class Runner:
         """Reset field and send START signal."""
         seed = ctx.base_seed + ep_index
         self.__field_manager.setup_scenario(ctx.template, ctx.scenario_cfg, seed)
+        
+        # Clear any leftover frames from previous episodes
+        ctx.session.buffer.clear()
+        
         ctx.session.connector.send(b"START\n")
         ctx.recorder.start_scenario(ctx.scenario_name, seed)
 
     def __run_episode_loop(self, ctx: EpisodeContext) -> None:
         """Pull frames, evaluate, record until terminal."""
         prev_state = None
+        logger.info(f"Starting episode loop. Loaded assessments: {[type(a).__name__ for a in assessment_registry._loaded]}")
+
         while not self.__shutdown_event.is_set():
             frame = ctx.session.buffer.pull()
             if frame is None:
@@ -208,6 +214,7 @@ class Runner:
             ctx.recorder.put(transition)
 
             if result.is_terminal:
+                logger.info(f"Episode terminated. Reason: {result.reason}")
                 break
 
             prev_state = frame["state"]
@@ -284,6 +291,13 @@ class Runner:
 def main() -> None:
     """CLI entry point for the LyNCh daemon."""
     import argparse
+
+    # Configure logging to output to console
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     parser = argparse.ArgumentParser(description="LyNCh daemon")
     parser.add_argument(
