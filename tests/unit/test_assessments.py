@@ -25,11 +25,11 @@ def test_ball_stopped():
     assert assessment.is_triggered({}, []) is False
 
     # Ball moving
-    history_moving = [{"ball": {"vx": 1.0, "vy": 1.0}}] * 10
+    history_moving = [{"state": {"ball": {"vx": 1.0, "vy": 1.0}}}] * 10
     assert assessment.is_triggered({"ball": {"vx": 1.0, "vy": 1.0}}, history_moving) is False
 
     # Ball stopped
-    history_stopped = [{"ball": {"vx": 0.0, "vy": 0.0}}] * 10
+    history_stopped = [{"state": {"ball": {"vx": 0.0, "vy": 0.0}}}] * 10
     assert assessment.is_triggered({"ball": {"vx": 0.0, "vy": 0.0}}, history_stopped) is True
     assert assessment.get_rewards() == {"striker": -1, "keeper": 1}
 
@@ -40,12 +40,12 @@ def test_ball_stopped_missing_ball_history():
     # History frames where "ball" is None — should not crash.
     # _get_speed returns 0.0 for None ball (treated as zero-velocity),
     # so with enough frames it triggers. The key assertion is no crash.
-    history_none_ball = [{"ball": None}] * 10
+    history_none_ball = [{"state": {"ball": None}}] * 10
     result = assessment.is_triggered({"ball": None}, history_none_ball)
     assert isinstance(result, bool)
 
     # History frames where "ball" key is missing entirely — should not crash
-    history_no_ball = [{}] * 10
+    history_no_ball = [{"state": {}}] * 10
     result2 = assessment.is_triggered({}, history_no_ball)
     assert isinstance(result2, bool)
 

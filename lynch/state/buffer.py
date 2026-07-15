@@ -12,6 +12,7 @@ class Buffer(Thread):
         self.parser = parser
         self.stop_event = Event()
         self._buffer = deque()
+        self._input_buffer = b""
 
     def run(self):
         try:
@@ -20,9 +21,20 @@ class Buffer(Thread):
                 try:
                     raw_data = self.connector.receive()
                     if raw_data:
-                        frame = self.parser.parse_from_bytes(raw_data)
-                        if frame:
-                            self._buffer.append(frame)
+                        if self.parser.__name__ == 'JSONParser':
+                            self._input_buffer += raw_data
+                            while b"\n" in self._input_buffer:
+                                line, self._input_buffer = self._input_buffer.split(b"\n", 1)
+                                if line:
+                                    frame = self.parser.parse_from_bytes(line)
+                                    if frame:
+                                        self._buffer.append(frame)
+                        else:
+                            # Direct processing for Protobuf
+                            frame = self.parser.parse_from_bytes(raw_data)
+                            if frame:
+                                self._buffer.append(frame)
+                                
                 except (ConnectionError, BrokenPipeError, RuntimeError, OSError) as e:
                     logger.error(f"Connection lost: {e}")
                     break
@@ -35,6 +47,10 @@ class Buffer(Thread):
         if not self._buffer:
             return None
         return self._buffer.popleft()
+
+    def clear(self):
+        """Clear all buffered frames."""
+        self._buffer.clear()
 
     def stop(self):
         self.stop_event.set()

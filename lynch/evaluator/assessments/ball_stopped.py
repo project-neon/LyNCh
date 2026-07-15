@@ -1,5 +1,8 @@
+import logging
 from typing import Dict, Optional
 from ..registry import assessment_registry
+
+logger = logging.getLogger(__name__)
 
 @assessment_registry.register("BallStopped")
 class BallStopped:
@@ -12,8 +15,9 @@ class BallStopped:
         if len(history) < self.frame_to_wait:
             return False
 
-        recent_frames = history[-self.frame_to_wait:]
-        return all(self._get_speed(f) < self.speed_threshold for f in recent_frames)
+        recent_frames = history[-self.frame_to_wait+1:]
+        recent_frames.append({"state": cur_state})
+        return all(self._get_speed(f['state']) < self.speed_threshold for f in recent_frames)
 
     def _get_speed(self, state: Dict) -> float:
         ball = state.get("ball")
