@@ -16,7 +16,7 @@ def test_initialize_session_neonfc():
             mode=DataMode.NEONFC,
             neon_host="127.0.0.1",
             data_port=10001,
-            signal_port=10002,
+            control_port=10002,
         )
 
     assert isinstance(session, Session)
@@ -36,7 +36,7 @@ def test_initialize_session_direct():
             mode=DataMode.DIRECT,
             neon_host="127.0.0.1",
             data_port=10001,
-            signal_port=10002,
+            control_port=10002,
             vision_host="224.5.23.2",
             vision_port=10010,
         )
@@ -56,5 +56,5 @@ def test_initialize_session_direct_missing_vision():
             mode=DataMode.DIRECT,
             neon_host="127.0.0.1",
             data_port=10001,
-            signal_port=10002,
+            control_port=10002,
         )
