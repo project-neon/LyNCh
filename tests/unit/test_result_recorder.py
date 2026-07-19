@@ -24,8 +24,8 @@ def test_recorder_lifecycle_and_persistence(recorder, temp_batch_dir):
     history_file = files[0]
 
     # 2. Record transitions
-    t1 = {"state": {"ball": {"x": 0.0}}, "prev_state": {"ball": {"x": 0.0}}, "action": {}, "rewards": {"striker": 0, "keeper": 0}}
-    t2 = {"state": {"ball": {"x": 1.0}}, "prev_state": {"ball": {"x": 0.0}}, "action": {}, "rewards": {"striker": 1, "keeper": -1}}
+    t1 = {"state": {"ball": {"x": 0.0}}, "next_state": {"ball": {"x": 0.0}}, "action": {}, "rewards": {"striker": 0, "keeper": 0}}
+    t2 = {"state": {"ball": {"x": 1.0}}, "next_state": {"ball": {"x": 0.0}}, "action": {}, "rewards": {"striker": 1, "keeper": -1}}
 
     recorder.put(t1)
     recorder.put(t2)
@@ -51,7 +51,7 @@ def test_put_schema_validation(recorder):
     recorder.start_scenario("schema_test")
     
     # Missing 'rewards'
-    bad_t = {"state": {}, "prev_state": {}, "action": {}}
+    bad_t = {"state": {}, "next_state": {}, "action": {}}
     with pytest.raises(ValueError, match="rewards"):
         recorder.put(bad_t)
 
@@ -60,13 +60,13 @@ def test_summarize_batch_logic(temp_batch_dir, recorder):
 
     # Scenario 1: Striker Wins (seed=100)
     recorder.start_scenario("win", seed=100)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
     recorder.end_scenario()
 
     # Scenario 2: Timeout (Keeper Wins) (seed=101)
     recorder.start_scenario("timeout", seed=101)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": -0.5, "keeper": 0.5}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": -0.5, "keeper": 0.5}})
     recorder.end_scenario()
 
     # Scenario 3: Empty (Should be skipped)
@@ -104,14 +104,14 @@ def test_summarize_batch_corruption_handling(temp_batch_dir, recorder):
     
     # 1. Create a valid file
     recorder.start_scenario("valid", seed=55)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
     recorder.end_scenario()
 
     # 2. Manually create a corrupted file
     corrupt_file = temp_batch_dir / "history_corrupt_9999.jsonl"
     with open(corrupt_file, "w") as f:
-        f.write('{"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}}\n')
-        f.write('{"state": {}, "prev_state": {}, "action": {}, "rewards": {MALFORMED_JSON}') 
+        f.write('{"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}}\n')
+        f.write('{"state": {}, "next_state": {}, "action": {}, "rewards": {MALFORMED_JSON}') 
 
     # 3. Run Aggregation
     # Should NOT raise JSONDecodeError
@@ -130,7 +130,7 @@ def test_history_windowing_maxlen(recorder):
     # recorder initialized with maxlen=5 in fixture
     recorder.start_scenario("window_test", seed=10)
     for i in range(10):
-        recorder.put({"state": {"frame": i}, "prev_state": {"frame": i-1}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
+        recorder.put({"state": {"frame": i}, "next_state": {"frame": i-1}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
 
     assert len(recorder.history) == 5
     assert recorder.history[-1]["state"]["frame"] == 9
@@ -143,7 +143,7 @@ def test_start_scenario_reentrancy_closes_previous(temp_batch_dir, recorder):
     first_file = recorder.current_file_path
     assert first_file is not None
 
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
 
     # Call start_scenario again — should close the first file handle
     recorder.start_scenario("second", seed=2)
@@ -178,11 +178,11 @@ def test_current_file_path_property(temp_batch_dir, recorder):
 def test_summarize_batch_all_seeds_omitted(temp_batch_dir, recorder):
     """When no seed is passed to any start_scenario, summary should have [None, None]."""
     recorder.start_scenario("no_seed_1")
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
     recorder.end_scenario()
 
     recorder.start_scenario("no_seed_2")
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0.5, "keeper": -0.5}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 0.5, "keeper": -0.5}})
     recorder.end_scenario()
 
     recorder.summarize_batch()
@@ -197,7 +197,7 @@ def test_summarize_batch_trailing_newline(temp_batch_dir, recorder):
     """A valid JSONL file with a trailing newline should still be counted."""
     # Create a scenario file with a trailing newline
     recorder.start_scenario("trailing_nl", seed=7)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": -1}})
     recorder.end_scenario()
 
     # Append a trailing newline manually to simulate an editor adding it
@@ -219,17 +219,17 @@ def test_summarize_batch_pass_condition(temp_batch_dir, recorder):
     """A test passes if at least one reward is non-zero (not requiring both)."""
     # Scenario 1: only striker scored
     recorder.start_scenario("striker_only", seed=1)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": 0}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 1, "keeper": 0}})
     recorder.end_scenario()
 
     # Scenario 2: only keeper scored
     recorder.start_scenario("keeper_only", seed=2)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 1}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 1}})
     recorder.end_scenario()
 
     # Scenario 3: draw (both zero) — should NOT pass
     recorder.start_scenario("draw", seed=3)
-    recorder.put({"state": {}, "prev_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
+    recorder.put({"state": {}, "next_state": {}, "action": {}, "rewards": {"striker": 0, "keeper": 0}})
     recorder.end_scenario()
 
     recorder.summarize_batch()

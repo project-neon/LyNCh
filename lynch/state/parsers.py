@@ -51,18 +51,18 @@ class JSONParser:
             payload = json.loads(data.decode("utf-8"))
 
             cur = payload.get("cur_state")
-            prev = payload.get("prev_state")
+            nxt = payload.get("next_state")
 
             if not isinstance(cur, list):
                 logger.error("NeonFC cur_state is not a list")
                 return None
 
             state = cls._parse_state_vector(cur)
-            prev_state = cls._parse_state_vector(prev) if isinstance(prev, list) else None
+            next_state = cls._parse_state_vector(nxt) if isinstance(nxt, list) else None
 
             return {
                 "state": state,
-                "prev_state": prev_state,
+                "next_state": next_state,
                 "action": payload.get("action"),
             }
         except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError) as e:
@@ -82,7 +82,7 @@ class ProtobufParser:
 
             return {
                 "state": state,
-                "prev_state": None,
+                "next_state": None,
                 "action": None,
             }
         except (DecodeError, TypeError, AttributeError) as e:

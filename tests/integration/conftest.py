@@ -138,10 +138,10 @@ class MockNeonFCServer:
                             0.0, 0.0, 0.0, 0.0, 0.0,   # yellow striker (id=0)
                             0.0, 0.0, 0.0, 0.0,        # ball
                         ]
-                        prev_state = list(cur_state)
+                        next_state = list(cur_state)
                         payload = {
                             "cur_state": cur_state,
-                            "prev_state": prev_state,
+                            "next_state": next_state,
                             "action": {"0": {"target_pose": (0.0, 0.0, 0.0)}}
                         }
                         data = json.dumps(payload).encode("utf-8")

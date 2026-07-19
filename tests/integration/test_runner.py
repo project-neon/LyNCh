@@ -83,7 +83,7 @@ class MockNeonFCServer:
 
                 payload = {
                     "cur_state": cur_state,
-                    "prev_state": list(cur_state),
+                    "next_state": list(cur_state),
                     "action": {},
                 }
                 conn.sendall(json.dumps(payload).encode("utf-8") + b"\n")

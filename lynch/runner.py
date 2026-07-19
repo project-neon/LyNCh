@@ -195,7 +195,6 @@ class Runner:
 
     def __run_episode_loop(self, ctx: EpisodeContext) -> None:
         """Pull frames, evaluate, record until terminal."""
-        prev_state = None
         logger.info(f"Starting episode loop. Loaded assessments: {[type(a).__name__ for a in assessment_registry._loaded]}")
 
         while not self.__shutdown_event.is_set():
@@ -207,7 +206,7 @@ class Runner:
             result = assessment_registry.evaluate(frame["state"], ctx.recorder.history)
             transition = {
                 "state": frame["state"],
-                "prev_state": frame.get("prev_state", prev_state),
+                "next_state": frame.get("next_state"),
                 "action": frame.get("action"),
                 "rewards": result.rewards,
             }
@@ -216,8 +215,6 @@ class Runner:
             if result.is_terminal:
                 logger.info(f"Episode terminated. Reason: {result.reason}")
                 break
-
-            prev_state = frame["state"]
 
     def __stop_episode(self, ctx: EpisodeContext) -> Optional[str]:
         """Send STOP signal and close recorder. Returns the closed file path."""

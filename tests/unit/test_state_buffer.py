@@ -65,14 +65,14 @@ def test_multicast_receive_timeout():
 def test_json_parser_success():
     # 14-float state vector: 5 per robot (x, y, vx, vy, theta) + 4 for ball
     cur_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0]
-    prev_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0]
-    data = json.dumps({"cur_state": cur_state, "prev_state": prev_state, "action": "kick"}).encode("utf-8")
+    next_state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0]
+    data = json.dumps({"cur_state": cur_state, "next_state": next_state, "action": "kick"}).encode("utf-8")
     result = JSONParser.parse_from_bytes(data)
     assert result is not None
     assert result["action"] == "kick"
     assert result["state"]["ball"]["x"] == 1.0
     assert result["state"]["ball"]["y"] == 2.0
-    assert result["prev_state"]["ball"]["x"] == 0.5
+    assert result["next_state"]["ball"]["x"] == 0.5
     assert len(result["state"]["robots"]["blue"]) == 1
     assert len(result["state"]["robots"]["yellow"]) == 1
 
@@ -86,11 +86,11 @@ def test_json_parser_fail():
 def test_json_parser_short_vector():
     """A vector with fewer than 14 elements should produce state=None, not raise."""
     cur_state = [0.0, 0.0, 0.0]  # only 3 elements
-    data = json.dumps({"cur_state": cur_state, "prev_state": cur_state, "action": None}).encode("utf-8")
+    data = json.dumps({"cur_state": cur_state, "next_state": cur_state, "action": None}).encode("utf-8")
     result = JSONParser.parse_from_bytes(data)
     assert result is not None
     assert result["state"] is None
-    assert result["prev_state"] is None
+    assert result["next_state"] is None
 
 # --- StateBuffer Tests ---
 
