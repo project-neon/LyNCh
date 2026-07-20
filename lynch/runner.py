@@ -134,7 +134,7 @@ class Runner:
 
     def __build_episode_context(self, command: Dict) -> EpisodeContext:
         """Build the context for a single batch."""
-        scenario_name = command.get("scenario_name")
+        scenario_name = command.get("test_case")
         if not scenario_name:
             raise ValueError("Missing 'scenario_name' in command")
 
