@@ -11,7 +11,7 @@ network:
     port: "10010"
 
 scenarios:
-  penalty_kick_uniform:
+  SHOOTOUT:
     template: "templates/penalty_kick_positions.yaml"
     strategy: "uniform_random"
     variance:
