@@ -48,7 +48,8 @@ def initialize_session(
     control_connector = TCPConnector(neon_host, control_port)
 
     if mode == DataMode.NEONFC:
-        data_connector = TCPConnector(neon_host, data_port)
+        # Data connector acts as a server to listen for incoming NeonFC data
+        data_connector = TCPConnector(neon_host, data_port, as_server=True)
         buffer = Buffer(connector=data_connector, parser=JSONParser)
 
     elif mode == DataMode.DIRECT:

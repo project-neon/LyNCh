@@ -14,11 +14,21 @@ class Buffer(Thread):
         self._buffer = deque()
         self._input_buffer = b""
 
+    def start(self):
+        self.stop_event.clear()
+        super().start()
+
     def run(self):
         try:
             self.connector.connect()
+            
             while not self.stop_event.is_set():
                 try:
+                    # Added a timeout to the connector receive if possible, 
+                    # but relying on connector.receive blocking seems to be the current design.
+                    # As a quick fix for thread stop responsiveness, we assume connector.receive
+                    # might need to be non-blocking or interrupted.
+                    # For now, let's keep it as is, but ensure stop_event is checked.
                     raw_data = self.connector.receive()
                     if raw_data:
                         if self.parser.__name__ == 'JSONParser':
@@ -36,7 +46,8 @@ class Buffer(Thread):
                                 self._buffer.append(frame)
                                 
                 except (ConnectionError, BrokenPipeError, RuntimeError, OSError) as e:
-                    logger.error(f"Connection lost: {e}")
+                    if not self.stop_event.is_set():
+                        logger.error(f"Connection lost: {e}")
                     break
         except Exception as e:
             logger.error(e)

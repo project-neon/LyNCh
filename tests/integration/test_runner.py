@@ -13,7 +13,7 @@ from lynch.runner import Runner
 
 
 class MockNeonFCServer:
-    """Mock NeonFC server that handles data + signal on separate ports."""
+    """Mock NeonFC server that acts as a client to LyNCh's data port."""
 
     def __init__(self, data_port=10015, control_port=10016):
         self.data_port = data_port
@@ -26,19 +26,28 @@ class MockNeonFCServer:
     def start(self):
         self.running = True
 
-        # Data server (telemetry)
-        self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.data_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.data_sock.bind(("127.0.0.1", self.data_port))
-        self.data_sock.listen(5)
-        threading.Thread(target=self._listen_data, daemon=True).start()
-
         # Signal server (receives START/STOP/metadata)
         self.signal_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.signal_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.signal_sock.bind(("127.0.0.1", self.control_port))
         self.signal_sock.listen(5)
         threading.Thread(target=self._listen_signal, daemon=True).start()
+
+        # Data client (connects to LyNCh's listening socket)
+        threading.Thread(target=self._connect_data, daemon=True).start()
+
+    def _connect_data(self):
+        # Retry until LyNCh is ready
+        retries = 0
+        while self.running and retries < 50:
+            try:
+                self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.data_sock.connect(("127.0.0.1", self.data_port))
+                self._handle_data(self.data_sock)
+                break
+            except OSError:
+                retries += 1
+                time.sleep(0.2)
 
     def stop(self):
         self.running = False
@@ -48,17 +57,6 @@ class MockNeonFCServer:
                     s.close()
                 except OSError:
                     pass
-
-    def _listen_data(self):
-        self.data_sock.settimeout(0.5)
-        while self.running:
-            try:
-                conn, _ = self.data_sock.accept()
-                threading.Thread(target=self._handle_data, args=(conn,), daemon=True).start()
-            except socket.timeout:
-                continue
-            except OSError:
-                break
 
     def _listen_signal(self):
         self.signal_sock.settimeout(0.5)
@@ -71,22 +69,21 @@ class MockNeonFCServer:
             except OSError:
                 break
 
-    def _handle_data(self, conn):
-        conn.settimeout(0.05)
+    def _handle_data(self, sock):
+        sock.settimeout(0.05)
         msg_count = 0
         while self.running:
             try:
                 cur_state = [0.0] * 14
-                # Trigger goal after 3 frames
                 if msg_count > 3:
-                    cur_state[10] = 4.5  # ball.x = goal line
+                    cur_state[10] = 4.5
 
                 payload = {
                     "cur_state": cur_state,
                     "next_state": list(cur_state),
                     "action": {},
                 }
-                conn.sendall(json.dumps(payload).encode("utf-8") + b"\n")
+                sock.sendall(json.dumps(payload).encode("utf-8") + b"\n")
                 msg_count += 1
             except OSError:
                 break
@@ -154,10 +151,11 @@ def test_runner_integration(tmp_path):
     client.connect(("127.0.0.1", 10005))
 
     command = {
-        "scenario_name": "penalty_kick",
+        "test_case": "penalty_kick",
         "metadata": {"test_run": "integration"},
         "config": {"batch_size": 1, "output_dir": str(output_dir)},
     }
+
     client.sendall(json.dumps(command).encode("utf-8") + b"\n")
 
     # 5. Read response

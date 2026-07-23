@@ -53,11 +53,16 @@ class Runner:
         runner_cfg = self.__config.get("runner", {})
         self.__host = runner_cfg.get("host", "127.0.0.1")
         self.__port = runner_cfg.get("port", 10003)
+        
+        # Initialize persistent session
+        self.__session = self.__initialize_session()
+        self.__session.buffer.start()
 
     def close(self) -> None:
         """Signal shutdown and release resources."""
         self.__shutdown_event.set()
         self.__field_manager.close()
+        self.__session.buffer.stop()
         if self.__server_socket:
             self.__server_socket.close()
             self.__server_socket = None
@@ -110,18 +115,11 @@ class Runner:
         if metadata:
             ctx.session.connector.send(json.dumps(metadata).encode())
 
-        # Start the State Buffer thread (once per batch)
-        ctx.session.buffer.start()
+        # Load assessments
+        assessment_registry.load(ctx.assessments)
 
-        try:
-            # Load assessments
-            assessment_registry.load(ctx.assessments)
-
-            # Execute episodes
-            history_files = self.__execute_batch(ctx)
-        finally:
-            # Stop the State Buffer thread (once per batch)
-            ctx.session.buffer.stop()
+        # Execute episodes
+        history_files = self.__execute_batch(ctx)
 
         # Summarize batch
         summary_file = ctx.recorder.summarize_batch()
@@ -145,7 +143,8 @@ class Runner:
         template_path = scenario_cfg.get("template", "")
         template = self.__load_template(template_path)
 
-        session = self.__initialize_session()
+        # Use persistent session
+        session = self.__session
 
         config = command.get("config", {})
         batch_size = config.get("batch_size", 1)

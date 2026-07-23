@@ -39,12 +39,12 @@ def runner(tmp_path):
 
 @pytest.mark.unit
 def test_runner_receive_command_reads_full_json(runner):
-    raw = (json.dumps({"scenario_name": "test", "batch_size": 2}) + "\n").encode("utf-8")
+    raw = (json.dumps({"test_case": "test", "batch_size": 2}) + "\n").encode("utf-8")
     chunks = [bytes([b]) for b in raw]
     sock = MagicMock()
     sock.recv.side_effect = chunks
     result = runner._Runner__receive_command(sock)
-    assert result == {"scenario_name": "test", "batch_size": 2}
+    assert result == {"test_case": "test", "batch_size": 2}
 
 @pytest.mark.unit
 def test_runner_receive_command_empty_payload_raises(runner):
@@ -96,7 +96,7 @@ def test_runner_build_episode_context_resolves_scenario(runner):
          patch.object(runner, "_Runner__initialize_session", return_value=MagicMock()):
         with patch("lynch.runner.Recorder"):
             ctx = runner._Runner__build_episode_context({
-                "scenario_name": "test",
+                "test_case": "test",
                 "config": {"batch_size": 3},
             })
     assert ctx.scenario_name == "test"
@@ -105,7 +105,7 @@ def test_runner_build_episode_context_resolves_scenario(runner):
 @pytest.mark.unit
 def test_runner_build_episode_context_missing_scenario_raises(runner):
     with pytest.raises(KeyError):
-        runner._Runner__build_episode_context({"scenario_name": "nonexistent"})
+        runner._Runner__build_episode_context({"test_case": "nonexistent"})
 
 @pytest.mark.unit
 def test_runner_build_episode_context_missing_scenario_name_raises(runner):
@@ -117,7 +117,7 @@ def test_runner_build_episode_context_defaults_batch_size_to_one(runner):
     with patch.object(runner, "_Runner__load_template", return_value={}), \
          patch.object(runner, "_Runner__initialize_session", return_value=MagicMock()):
         with patch("lynch.runner.Recorder"):
-            ctx = runner._Runner__build_episode_context({"scenario_name": "test"})
+            ctx = runner._Runner__build_episode_context({"test_case": "test"})
     assert ctx.batch_size == 1
 
 
@@ -260,7 +260,7 @@ def test_runner_execute_batch_none_path_excluded(runner):
 
 @pytest.mark.unit
 def test_runner_handle_client_success_flow(runner):
-    cmd = {"scenario_name": "test", "config": {"batch_size": 1}}
+    cmd = {"test_case": "test", "config": {"batch_size": 1}}
     batch_result = {"status": "success", "history_files": [], "summary_file": "/s.json"}
 
     mock_conn = MagicMock()
