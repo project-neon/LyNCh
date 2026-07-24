@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Any
 import yaml
 
 from .state.session import initialize_session, Session, DataMode
+from .state.event import Event
 from .field.manager import Manager
 from .result.recorder import Recorder
 from .evaluator.registry import assessment_registry
@@ -113,7 +114,7 @@ class Runner:
         # Send metadata to NeonFC control
         metadata = command.get("metadata", {})
         if metadata:
-            ctx.session.connector.send(json.dumps(metadata).encode())
+            ctx.session.connector.send(Event.model_update(metadata).serialize())
 
         # Load assessments
         assessment_registry.load(ctx.assessments)
@@ -189,7 +190,7 @@ class Runner:
         # Clear any leftover frames from previous episodes
         ctx.session.buffer.clear()
         
-        ctx.session.connector.send(b"START\n")
+        ctx.session.connector.send(Event.play().serialize())
         ctx.recorder.start_scenario(ctx.scenario_name, seed)
 
     def __run_episode_loop(self, ctx: EpisodeContext) -> None:
@@ -218,7 +219,7 @@ class Runner:
     def __stop_episode(self, ctx: EpisodeContext) -> Optional[str]:
         """Send STOP signal and close recorder. Returns the closed file path."""
         try:
-            ctx.session.connector.send(b"STOP\n")
+            ctx.session.connector.send(Event.stop().serialize())
         except OSError as e:
             logger.warning(f"Failed to send STOP: {e}")
         return ctx.recorder.end_scenario()
