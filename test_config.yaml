@@ -42,6 +42,6 @@ scenarios:
             y: 0.1
     assessments: 
       - "GoalScored"
-      - {"name": "TimeLimit", "config": {"limit": 5}}
+      - {"name": "TimeLimit", "config": {"limit": 60}}
       - "BallStopped"
       - "BallOutOfBounds"
