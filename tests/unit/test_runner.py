@@ -160,7 +160,7 @@ def test_runner_stop_episode_tolerates_send_failure(runner):
 def test_runner_run_episode_loop_breaks_on_terminal_result(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "action": {}},
+        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
     ]
 
     terminal_result = MagicMock()
@@ -177,9 +177,9 @@ def test_runner_run_episode_loop_breaks_on_terminal_result(runner):
 def test_runner_run_episode_loop_continues_until_terminal(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "action": {}},
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "action": {}},
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "action": {}},
+        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
+        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
+        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
     ]
 
     non_terminal = MagicMock(is_terminal=False, rewards={"striker": 0.0, "keeper": 0.0})
@@ -198,7 +198,7 @@ def test_runner_run_episode_loop_skips_none_frames(runner):
     ctx.session.buffer.pull.side_effect = [
         None,
         None,
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "action": {}},
+        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
     ]
 
     with patch("lynch.runner.assessment_registry") as mock_registry, \
@@ -212,8 +212,8 @@ def test_runner_run_episode_loop_skips_none_frames(runner):
 def test_runner_run_episode_loop_records_transition_per_frame(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "action": {}},
-        {"state": {"ball": {"x": 4.5}}, "next_state": {"ball": {"x": 0.0}}, "action": {}},
+        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
+        {"state": {"ball": {"x": 4.5}}, "next_state": {"ball": {"x": 0.0}}, "actions": {}},
     ]
 
     non_terminal = MagicMock(is_terminal=False, rewards={"striker": 0.0, "keeper": 0.0})
@@ -228,7 +228,7 @@ def test_runner_run_episode_loop_records_transition_per_frame(runner):
     first_call = ctx.recorder.put.call_args_list[0][0][0]
     assert "state" in first_call
     assert "next_state" in first_call
-    assert "action" in first_call
+    assert "actions" in first_call
     assert "rewards" in first_call
 
 

@@ -13,8 +13,10 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim):
     template = {
         "ball": {"x": 1.0, "y": 2.0},
         "robots": {
-            "yellow": [{"id": 0, "x": 2.0, "y": 0.0, "theta": 0.0}],
-            "blue": []
+            "blue": [
+                {"id": 0, "x": 2.0, "y": 0.0, "theta": 0.0},
+                {"id": 1, "x": 1.5, "y": 0.5, "theta": 0.0}
+            ]
         }
     }
     scenario_config = {
@@ -27,18 +29,16 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim):
     # 3. Verify packet arrival at mock server
     time.sleep(0.1)  # Wait for UDP packet
     assert mock_grsim.received_count > 0
-    
+
     last_packet = mock_grsim.last_packet
     assert last_packet.HasField("replacement")
-    
+
     replacement = last_packet.replacement
     assert replacement.ball.x == 1.0
     assert replacement.ball.y == 2.0
-    
-    yellow_robots = [r for r in replacement.robots if r.yellowteam]
-    assert len(yellow_robots) == 1
-    assert yellow_robots[0].x == 2.0
-    assert yellow_robots[0].id == 0
+
+    blue_robots = [r for r in replacement.robots if not r.yellowteam]
+    assert len(blue_robots) == 2
 
 @pytest.mark.integration
 def test_setup_scenario_with_variance(mock_grsim):

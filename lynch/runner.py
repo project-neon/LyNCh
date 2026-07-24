@@ -206,7 +206,7 @@ class Runner:
             transition = {
                 "state": frame["state"],
                 "next_state": frame.get("next_state"),
-                "action": frame.get("action"),
+                "actions": frame.get("actions"),
                 "rewards": result.rewards,
             }
             ctx.recorder.put(transition)

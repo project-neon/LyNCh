@@ -6,20 +6,20 @@ from protocols.vision.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
 
 logger = logging.getLogger(__name__)
 
-# NeonFC state vector layout: 5 values per robot (x, y, vx, vy, theta) + 4 for ball
-_BALL_OFFSET = 10  # ball starts after 2 robots * 5 fields
+# NeonFC state vector layout: 6 values per robot (x, y, theta, vx, vy, vtheta) + 4 for ball
+_BALL_OFFSET = 12  # ball starts after 2 robots * 6 fields
 
 # Robot indices in the flat list: (team, id, start_index)
 _NEONFC_ROBOTS = [
-    ("blue", 0, 0),    # goalkeeper: indices 0-4
-    ("yellow", 0, 5),  # striker: indices 5-9
+    ("blue", 0, 0),    # goalkeeper: indices 0-5
+    ("blue", 1, 6),    # striker: indices 6-11
 ]
 
 
 class JSONParser:
     @staticmethod
     def _parse_state_vector(vector: List[float]) -> Optional[Dict]:
-        """Convert a 14-float NeonFC state vector into the canonical state dict."""
+        """Convert a 16-float NeonFC state vector into the canonical state dict."""
         if len(vector) < _BALL_OFFSET + 4:
             logger.error(f"NeonFC state vector too short: {len(vector)} (expected >= {_BALL_OFFSET + 4})")
             return None
@@ -38,9 +38,10 @@ class JSONParser:
                 "id": rid,
                 "x": vector[start],
                 "y": vector[start + 1],
-                "vx": vector[start + 2],
-                "vy": vector[start + 3],
-                "theta": vector[start + 4],
+                "theta": vector[start + 2],
+                "vx": vector[start + 3],
+                "vy": vector[start + 4],
+                "vtheta": vector[start + 5],
             })
 
         return state
@@ -63,7 +64,7 @@ class JSONParser:
             return {
                 "state": state,
                 "next_state": next_state,
-                "action": payload.get("action"),
+                "actions": payload.get("actions"),
             }
         except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError) as e:
             logger.error(f"Failed to parse NeonFC packet: {e}")
@@ -83,7 +84,7 @@ class ProtobufParser:
             return {
                 "state": state,
                 "next_state": None,
-                "action": None,
+                "actions": None,
             }
         except (DecodeError, TypeError, AttributeError) as e:
             logger.error(f"Failed to parse SSL Vision packet: {e}")

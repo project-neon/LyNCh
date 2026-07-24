@@ -13,9 +13,7 @@ robots:
       y: 0.0
       theta: 0.0
       role: "keeper"
-
-  yellow:
-    - id: 0
+    - id: 1
       x: 2.0
       y: 0.0
       theta: 3.1415

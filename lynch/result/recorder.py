@@ -73,7 +73,7 @@ class Recorder:
         Raises:
             ValueError: If the transition dict is missing required keys.
         """
-        missing = {"state", "next_state", "action", "rewards"} - transition.keys()
+        missing = {"state", "next_state", "actions", "rewards"} - transition.keys()
         if missing:
             raise ValueError(f"Transition missing required keys: {missing}")
 

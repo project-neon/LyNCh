@@ -50,7 +50,7 @@ def test_state_buffer_receives_data_from_neonfc(mock_neonfc):
     try:
         assert data is not None
         assert "state" in data
-        assert "action" in data
+        assert "actions" in data
     finally:
         sb.stop()
 

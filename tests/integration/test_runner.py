@@ -68,20 +68,21 @@ class MockNeonFCServer:
                 continue
             except OSError:
                 break
-
     def _handle_data(self, sock):
         sock.settimeout(0.05)
         msg_count = 0
         while self.running:
             try:
-                cur_state = [0.0] * 14
+                # 16-element state: 6 per robot * 2 + 4 for ball
+                cur_state = [0.0] * 16
+                # Trigger goal after 3 frames (ball x is index 12)
                 if msg_count > 3:
-                    cur_state[10] = 4.5
+                    cur_state[12] = 4.5 
 
                 payload = {
                     "cur_state": cur_state,
                     "next_state": list(cur_state),
-                    "action": {},
+                    "actions": {"goalkeeper": [0.0]*4, "striker": [0.0]*4},
                 }
                 sock.sendall(json.dumps(payload).encode("utf-8") + b"\n")
                 msg_count += 1

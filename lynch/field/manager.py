@@ -52,19 +52,18 @@ class Manager:
         repl.ball.x = ball.get("x", 0.0)
         repl.ball.y = ball.get("y", 0.0)
 
-        for team_color, is_yellow in [("blue", False), ("yellow", True)]:
-            team_data = positions.get("robots", {}).get(team_color, [])
-            for robot in team_data:
-                if not isinstance(robot, dict):
-                    logger.warning(f"Skipping non-dict robot entry for {team_color}")
-                    continue
-                rob = repl.robots.add()
-                rob.id = robot.get("id", 0)
-                rob.x = robot.get("x", 0.0)
-                rob.y = robot.get("y", 0.0)
-                rob.dir = robot.get("theta", 0.0)
-                rob.yellowteam = is_yellow
-                rob.turnon = True
+        team_data = positions.get("robots", {}).get("blue", [])
+        for robot in team_data:
+            if not isinstance(robot, dict):
+                logger.warning(f"Skipping non-dict robot entry for {"blue"}")
+                continue
+            rob = repl.robots.add()
+            rob.id = robot.get("id", 0)
+            rob.x = robot.get("x", 0.0)
+            rob.y = robot.get("y", 0.0)
+            rob.dir = robot.get("theta", 0.0)
+            rob.yellowteam = False
+            rob.turnon = True
 
         packet = grSim_Packet()
         packet.replacement.CopyFrom(repl)
