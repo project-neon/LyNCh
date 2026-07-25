@@ -1,18 +1,20 @@
 import socket
 import logging
 from typing import Dict, Optional
-from protocols.sim.grSim_Packet_pb2 import grSim_Packet
-from protocols.sim.grSim_Replacement_pb2 import grSim_Replacement
+from protocols.sim.ssl_simulation_control_pb2 import SimulatorCommand
+from protocols.gc.ssl_gc_common_pb2 import BLUE, YELLOW
 
-logger = logging.getLogger(__name__)
 from .variance import (
     NoVariance,
     UniformRandomVariance,
     GaussianRandomVariance
 )
 
-GRSIM_HOST = "127.0.0.1"
-GRSIM_PORT = 20011
+logger = logging.getLogger(__name__)
+
+SIM_HOST = "127.0.0.1"
+SIM_PORT = 10300
+SIM_SPEED = 1.0
 STRATEGIES = {
     "no_variance": NoVariance,
     "uniform_random": UniformRandomVariance,
@@ -46,35 +48,40 @@ class Manager:
         return strg.apply(template, variance)
 
     def _send_replacement(self, positions: Dict):
-        repl = grSim_Replacement()
+        packet = SimulatorCommand()
+        ctrl = packet.control
 
+        ctrl.simulation_speed = SIM_SPEED
+
+        # Ball Teleport
         ball = positions.get("ball", {})
-        repl.ball.x = ball.get("x", 0.0)
-        repl.ball.y = ball.get("y", 0.0)
+        ctrl.teleport_ball.x = ball.get("x", 0.0)
+        ctrl.teleport_ball.y = ball.get("y", 0.0)
+        ctrl.teleport_ball.z = 0.0
+        ctrl.teleport_ball.teleport_safely = True
 
-        team_data = positions.get("robots", {}).get("blue", [])
-        for robot in team_data:
-            if not isinstance(robot, dict):
-                logger.warning(f"Skipping non-dict robot entry for {"blue"}")
+        # Robot Teleport (All Blue)
+        robots = positions.get("robots", {}).get("blue", [])
+        for robot_data in robots:
+            if not isinstance(robot_data, dict) or "id" not in robot_data:
+                logger.warning(f"Skipping malformed robot entry: {robot_data}")
                 continue
-            rob = repl.robots.add()
-            rob.id = robot.get("id", 0)
-            rob.x = robot.get("x", 0.0)
-            rob.y = robot.get("y", 0.0)
-            rob.dir = robot.get("theta", 0.0)
-            rob.yellowteam = False
-            rob.turnon = True
-
-        packet = grSim_Packet()
-        packet.replacement.CopyFrom(repl)
+                
+            rob = ctrl.teleport_robot.add()
+            rob.id.id = robot_data.get("id", 0)
+            rob.id.team = BLUE
+            rob.present = True
+            rob.x = robot_data.get("x", 0.0)
+            rob.y = robot_data.get("y", 0.0)
+            rob.orientation = robot_data.get("theta", 0.0)
 
         try:
             self.__socket.sendto(
                 packet.SerializeToString(),
-                (GRSIM_HOST, GRSIM_PORT)
+                (SIM_HOST, SIM_PORT)
             )
         except Exception as e:
-            logger.error(f"Failed to send to grSim: {e}")
+            logger.error(f"Failed to send to sim: {e}")
 
     def setup_scenario(self, template: Dict, scenario_config: Dict, seed: Optional[int] = None):
         variance_config = scenario_config.get("variance", {})

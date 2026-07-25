@@ -31,14 +31,15 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim):
     assert mock_grsim.received_count > 0
 
     last_packet = mock_grsim.last_packet
-    assert last_packet.HasField("replacement")
+    # The packet is now a SimulatorCommand, check 'control' field
+    assert last_packet.HasField("control")
 
-    replacement = last_packet.replacement
-    assert replacement.ball.x == 1.0
-    assert replacement.ball.y == 2.0
+    ctrl = last_packet.control
+    assert ctrl.teleport_ball.x == 1.0
+    assert ctrl.teleport_ball.y == 2.0
 
-    blue_robots = [r for r in replacement.robots if not r.yellowteam]
-    assert len(blue_robots) == 2
+    # There should be 2 robots added to teleport_robot
+    assert len(ctrl.teleport_robot) == 2
 
 @pytest.mark.integration
 def test_setup_scenario_with_variance(mock_grsim):
@@ -61,8 +62,8 @@ def test_setup_scenario_with_variance(mock_grsim):
     assert mock_grsim.received_count > 0
     
     last_packet = mock_grsim.last_packet
-    replacement = last_packet.replacement
+    ctrl = last_packet.control
     
     # In uniform_random with (5.0, 5.0) range, it must be exactly 5.0
-    assert replacement.ball.x == pytest.approx(5.0)
-    assert replacement.ball.y == pytest.approx(5.0)
+    assert ctrl.teleport_ball.x == pytest.approx(5.0)
+    assert ctrl.teleport_ball.y == pytest.approx(5.0)

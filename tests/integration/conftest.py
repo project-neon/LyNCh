@@ -8,11 +8,10 @@ import json
 import pytest
 
 from protocols.vision.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
-from protocols.sim.grSim_Packet_pb2 import grSim_Packet
-
+from protocols.sim.ssl_simulation_control_pb2 import SimulatorCommand
 
 class MockGrSimServer:
-    """Mock grSim server that receives replacement packets."""
+    """Mock simulator server that receives SimulatorCommand packets."""
 
     def __init__(self, port: int):
         self.port = port
@@ -38,11 +37,12 @@ class MockGrSimServer:
             self.socket.close()
 
     def _listen(self) -> None:
-        """Listen for and deserialize grSim_Packet messages."""
+        """Listen for and deserialize SimulatorCommand messages."""
         while self.running.is_set():
             try:
                 data, _ = self.socket.recvfrom(4096)
-                packet = grSim_Packet()
+
+                packet = SimulatorCommand()
                 packet.ParseFromString(data)
                 self.last_packet = packet
                 self.received_count += 1
@@ -155,7 +155,7 @@ class MockNeonFCServer:
 @pytest.fixture
 def mock_grsim():
     """Fixture that starts/stops mock grSim server."""
-    server = MockGrSimServer(port=20011)
+    server = MockGrSimServer(port=10300)
     server.start()
     time.sleep(0.05)
     yield server
