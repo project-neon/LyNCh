@@ -74,10 +74,21 @@ class MockNeonFCServer:
         while self.running:
             try:
                 # 16-element state: 6 per robot * 2 + 4 for ball
+                # Blue: robot 0 at raw (2.5, 3.0) -> (-2.0, 0.0)
+                # Yellow: robot 0 at raw (6.5, 3.0) -> (2.0, 0.0)
+                # Ball: (initially) at raw (4.5, 3.0) -> (0.0, 0.0)
                 cur_state = [0.0] * 16
-                # Trigger goal after 3 frames (ball x is index 12)
+                cur_state[0] = 2.5
+                cur_state[1] = 3.0
+                cur_state[6] = 6.5
+                cur_state[7] = 3.0
+                cur_state[12] = 4.5
+                cur_state[13] = 3.0
+
+                # Trigger goal after 3 frames (ball x is index 12, raw 9.0 transforms to 4.5)
                 if msg_count > 3:
-                    cur_state[12] = 4.5 
+                    cur_state[12] = 9.0 
+                    cur_state[13] = 3.0
 
                 payload = {
                     "cur_state": cur_state,
