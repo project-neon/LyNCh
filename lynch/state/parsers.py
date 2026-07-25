@@ -8,12 +8,18 @@ logger = logging.getLogger(__name__)
 
 # NeonFC state vector layout: 6 values per robot (x, y, theta, vx, vy, vtheta) + 4 for ball
 _BALL_OFFSET = 12  # ball starts after 2 robots * 6 fields
+_OFFSET_X = 4.5
+_OFFSET_Y = 3.0
 
 # Robot indices in the flat list: (team, id, start_index)
 _NEONFC_ROBOTS = [
     ("blue", 0, 0),    # goalkeeper: indices 0-5
     ("blue", 1, 6),    # striker: indices 6-11
 ]
+
+
+def _transform_coords(x: float, y: float):
+    return x - _OFFSET_X, y - _OFFSET_Y
 
 
 class JSONParser:
@@ -23,10 +29,13 @@ class JSONParser:
         if len(vector) < _BALL_OFFSET + 4:
             logger.error(f"NeonFC state vector too short: {len(vector)} (expected >= {_BALL_OFFSET + 4})")
             return None
+        
+        ball_x, ball_y = _transform_coords(vector[_BALL_OFFSET], vector[_BALL_OFFSET + 1])
+        
         state = {
             "ball": {
-                "x": vector[_BALL_OFFSET],
-                "y": vector[_BALL_OFFSET + 1],
+                "x": ball_x,
+                "y": ball_y,
                 "vx": vector[_BALL_OFFSET + 2],
                 "vy": vector[_BALL_OFFSET + 3],
             },
@@ -34,10 +43,11 @@ class JSONParser:
         }
 
         for team, rid, start in _NEONFC_ROBOTS:
+            rob_x, rob_y = _transform_coords(vector[start], vector[start + 1])
             state["robots"][team].append({
                 "id": rid,
-                "x": vector[start],
-                "y": vector[start + 1],
+                "x": rob_x,
+                "y": rob_y,
                 "theta": vector[start + 2],
                 "vx": vector[start + 3],
                 "vy": vector[start + 4],
