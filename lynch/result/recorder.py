@@ -2,9 +2,10 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 from collections import deque
 from datetime import datetime
+from lynch.state.schema import Transition
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class Recorder:
 
     @property
     def history(self):
-        """Returns the current scenario's sliding window history as a list."""
+        """Returns the current scenario's sliding window history as a list of Transition objects."""
         return list(self.__history)
 
     @property
@@ -65,20 +66,16 @@ class Recorder:
                 self.__first_seed = seed
             self.__last_seed = seed
 
-    def put(self, transition: Dict) -> None:
+    def put(self, transition: Transition) -> None:
         """
-        Validates and records a transition.
+        Records a transition.
         Persists to disk if a scenario is active and appends to the RAM buffer.
 
-        Raises:
-            ValueError: If the transition dict is missing required keys.
+        Args:
+            transition: The transition object to record.
         """
-        missing = {"state", "next_state", "actions", "rewards"} - transition.keys()
-        if missing:
-            raise ValueError(f"Transition missing required keys: {missing}")
-
         if self.__current_file is not None:
-            self.__current_file.write(json.dumps(transition) + "\n")
+            self.__current_file.write(transition.to_recorder_json() + "\n")
         self.__history.append(transition)
 
     def end_scenario(self) -> Optional[str]:
@@ -109,10 +106,8 @@ class Recorder:
             "tests_ran": 0,
             "tests_passed": 0,
             "seeds": [self.__first_seed, self.__last_seed],
-            "striker_avg_score": 0.0,
-            "keeper_avg_score": 0.0,
-            "striker_total_score": 0.0,
-            "keeper_total_score": 0.0,
+            "avg_score": 0.0,
+            "total_score": 0.0,
         }
 
         for run_file in self.__dir.glob("history_*.jsonl"):
@@ -122,18 +117,15 @@ class Recorder:
                     if not last_line:
                         continue
 
+                    # The new format: {"next_state": [...], "cur_state": [...], "actions": ..., "rewards": ..., "done": true|false}
                     last_transition = json.loads(last_line[0])
 
                 summary["tests_ran"] += 1
-                rewards = last_transition.get("rewards", {})
+                r = last_transition.get("rewards", 0.0)
 
-                r_striker = rewards.get("striker", 0.0)
-                r_keeper = rewards.get("keeper", 0.0)
+                summary["total_score"] += r
 
-                summary["striker_total_score"] += r_striker
-                summary["keeper_total_score"] += r_keeper
-
-                if r_striker != 0 or r_keeper != 0:
+                if r != 0:
                     summary["tests_passed"] += 1
 
             except (json.JSONDecodeError, IOError, IndexError) as e:
@@ -141,8 +133,7 @@ class Recorder:
                 continue
 
         if summary["tests_ran"] > 0:
-            summary["striker_avg_score"] = summary["striker_total_score"] / summary["tests_ran"]
-            summary["keeper_avg_score"] = summary["keeper_total_score"] / summary["tests_ran"]
+            summary["avg_score"] = summary["total_score"] / summary["tests_ran"]
 
         with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f)

@@ -27,11 +27,11 @@ def test_state_buffer_receives_sequential_data_from_autoref(mock_autoref):
         assert len(packets) > 1, "Not enough packets received from MockAutoRef"
         # Verify all packets have the canonical state structure
         for p in packets:
-            assert "state" in p
-            assert "ball" in p["state"]
-            assert "robots" in p["state"]
-            assert "blue" in p["state"]["robots"]
-            assert "yellow" in p["state"]["robots"]
+            assert p.state is not None
+            assert p.state.ball is not None
+            assert p.state.robots is not None
+            assert "blue" in p.state.robots
+            assert "yellow" in p.state.robots
     finally:
         sb.stop()
 
@@ -49,8 +49,8 @@ def test_state_buffer_receives_data_from_neonfc(mock_neonfc):
 
     try:
         assert data is not None
-        assert "state" in data
-        assert "actions" in data
+        assert data.state is not None
+        assert data.actions is not None
     finally:
         sb.stop()
 

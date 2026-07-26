@@ -26,7 +26,6 @@ scenarios:
     assessments: 
       - "GoalScored"
       - {"name": "TimeLimit", "config": {"limit": 5}}
-      - "BallStopped"
       - "BallOutOfBounds"
 
   penalty_kick_gaussian:

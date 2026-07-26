@@ -70,15 +70,15 @@ def test_json_parser_success():
     data = json.dumps({"cur_state": cur_state, "next_state": next_state, "actions": actions}).encode("utf-8")
     result = JSONParser.parse_from_bytes(data)
     assert result is not None
-    assert result["actions"] == actions
+    assert result.actions == actions
     # Transformed: 1.0 - 4.5 = -3.5, 2.0 - 3.0 = -1.0
-    assert result["state"]["ball"]["x"] == -3.5
-    assert result["state"]["ball"]["y"] == -1.0
+    assert result.state.ball.x == -3.5
+    assert result.state.ball.y == -1.0
     # Transformed: 0.5 - 4.5 = -4.0, 1.0 - 3.0 = -2.0
-    assert result["next_state"]["ball"]["x"] == -4.0
-    assert result["next_state"]["ball"]["y"] == -2.0
-    assert len(result["state"]["robots"]["blue"]) == 2
-    assert len(result["state"]["robots"]["yellow"]) == 0
+    assert result.next_state.ball.x == -4.0
+    assert result.next_state.ball.y == -2.0
+    assert len(result.state.robots["blue"]) == 2
+    assert len(result.state.robots["yellow"]) == 0
 
 @pytest.mark.unit
 def test_json_parser_fail():
@@ -93,8 +93,8 @@ def test_json_parser_short_vector():
     data = json.dumps({"cur_state": cur_state, "next_state": cur_state, "actions": None}).encode("utf-8")
     result = JSONParser.parse_from_bytes(data)
     assert result is not None
-    assert result["state"] is None
-    assert result["next_state"] is None
+    assert result.state is None
+    assert result.next_state is None
 
 # --- StateBuffer Tests ---
 

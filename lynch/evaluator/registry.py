@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TestResult:
     is_terminal: bool
-    rewards: Dict[str, float]
+    rewards: float
     reason: str
 
 
@@ -72,7 +72,7 @@ class AssessmentRegistry:
                 )
         return TestResult(
             is_terminal=False,
-            rewards={"striker": 0.0, "keeper": 0.0},
+            rewards=0.0,
             reason="Running",
         )
 
