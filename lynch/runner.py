@@ -198,18 +198,14 @@ class Runner:
         logger.info(f"Starting episode loop. Loaded assessments: {[type(a).__name__ for a in assessment_registry._loaded]}")
 
         while not self.__shutdown_event.is_set():
-            frame = ctx.session.buffer.pull()
-            if frame is None:
+            transition = ctx.session.buffer.pull()
+            if transition is None:
                 time.sleep(0.001)
                 continue
 
-            result = assessment_registry.evaluate(frame["state"], ctx.recorder.history)
-            transition = {
-                "state": frame["state"],
-                "next_state": frame.get("next_state"),
-                "actions": frame.get("actions"),
-                "rewards": result.rewards,
-            }
+            result = assessment_registry.evaluate(transition.state, ctx.recorder.history)
+            transition.rewards = result.rewards
+            transition.done = result.is_terminal
             ctx.recorder.put(transition)
 
             if result.is_terminal:

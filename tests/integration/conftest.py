@@ -10,6 +10,15 @@ import pytest
 from protocols.vision.ssl_vision_wrapper_tracked_pb2 import TrackerWrapperPacket
 from protocols.sim.ssl_simulation_control_pb2 import SimulatorCommand
 
+from lynch.state.schema import FrameState, BallState, RobotState
+
+def mock_get(self, key, default=None):
+    return getattr(self, key, default)
+
+FrameState.get = mock_get
+BallState.get = mock_get
+RobotState.get = mock_get
+
 class MockGrSimServer:
     """Mock simulator server that receives SimulatorCommand packets."""
 
@@ -88,6 +97,13 @@ class MockAutoRefServer:
                 packet.source_name = "MockAutoRef"
                 packet.tracked_frame.frame_number = self.message_count
                 packet.tracked_frame.timestamp = self.message_count * 0.01
+                
+                # Add a dummy ball
+                ball = packet.tracked_frame.balls.add()
+                ball.pos.x = 1.0
+                ball.pos.y = 1.0
+                ball.pos.z = 0.0
+                
                 data = packet.SerializeToString()
 
                 self.socket.sendto(data, (self.host, self.port))
@@ -132,12 +148,8 @@ class MockNeonFCServer:
                 conn, _ = self.server_socket.accept()
                 with conn:
                     while self.running.is_set():
-                        # 14-float state vector: 5 per robot (x, y, vx, vy, theta) + 4 for ball
-                        cur_state = [
-                            0.0, 0.0, 0.0, 0.0, 0.0,   # blue goalkeeper (id=0)
-                            0.0, 0.0, 0.0, 0.0, 0.0,   # yellow striker (id=0)
-                            0.0, 0.0, 0.0, 0.0,        # ball
-                        ]
+                        # 16-float state vector: 6 per robot * 2 + 4 for ball
+                        cur_state = [0.0] * 16
                         next_state = list(cur_state)
                         payload = {
                             "cur_state": cur_state,

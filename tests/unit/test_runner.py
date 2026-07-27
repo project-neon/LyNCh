@@ -6,9 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lynch.runner import Runner
-
+from lynch.state.schema import Transition, FrameState
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def runner(tmp_path):
@@ -126,6 +127,7 @@ def test_runner_build_episode_context_defaults_batch_size_to_one(runner):
 @pytest.mark.unit
 def test_runner_arm_episode_sends_start_and_opens_scenario(runner):
     ctx = MagicMock()
+    ctx.session.connector = MagicMock()
     ctx.scenario_cfg = {}
     ctx.scenario_name = "test"
     ctx.base_seed = 10
@@ -136,14 +138,25 @@ def test_runner_arm_episode_sends_start_and_opens_scenario(runner):
     runner._Runner__field_manager.setup_scenario.assert_called_once_with(
         ctx.template, ctx.scenario_cfg, 12
     )
-    ctx.session.connector.send.assert_called_once_with(b"START\n")
+    
+    # Verify JSON serialization for Event.play()
+    sent_data = json.loads(ctx.session.connector.send.call_args[0][0])
+    assert sent_data["type"] == "MasterState"
+    assert sent_data["event_data"]["new_state"] == "play"
+    
     ctx.recorder.start_scenario.assert_called_once_with("test", 12)
 
 @pytest.mark.unit
 def test_runner_stop_episode_sends_stop_and_closes_scenario(runner):
     ctx = MagicMock()
+    ctx.session.connector = MagicMock()
     runner._Runner__stop_episode(ctx)
-    ctx.session.connector.send.assert_called_once_with(b"STOP\n")
+    
+    # Verify JSON serialization for Event.stop()
+    sent_data = json.loads(ctx.session.connector.send.call_args[0][0])
+    assert sent_data["type"] == "MasterState"
+    assert sent_data["event_data"]["new_state"] == "stop"
+    
     ctx.recorder.end_scenario.assert_called_once()
 
 @pytest.mark.unit
@@ -160,12 +173,12 @@ def test_runner_stop_episode_tolerates_send_failure(runner):
 def test_runner_run_episode_loop_breaks_on_terminal_result(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
     ]
 
     terminal_result = MagicMock()
     terminal_result.is_terminal = True
-    terminal_result.rewards = {"striker": 1.0, "keeper": -1.0}
+    terminal_result.rewards = 1.0
 
     with patch("lynch.runner.assessment_registry") as mock_registry:
         mock_registry.evaluate.return_value = terminal_result
@@ -177,13 +190,13 @@ def test_runner_run_episode_loop_breaks_on_terminal_result(runner):
 def test_runner_run_episode_loop_continues_until_terminal(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
     ]
 
-    non_terminal = MagicMock(is_terminal=False, rewards={"striker": 0.0, "keeper": 0.0})
-    terminal = MagicMock(is_terminal=True, rewards={"striker": 1.0, "keeper": -1.0})
+    non_terminal = MagicMock(is_terminal=False, rewards=0.0)
+    terminal = MagicMock(is_terminal=True, rewards=1.0)
 
     with patch("lynch.runner.assessment_registry") as mock_registry:
         mock_registry.evaluate.side_effect = [non_terminal, non_terminal, terminal]
@@ -194,11 +207,11 @@ def test_runner_run_episode_loop_continues_until_terminal(runner):
 @pytest.mark.unit
 def test_runner_run_episode_loop_skips_none_frames(runner):
     ctx = MagicMock()
-    terminal = MagicMock(is_terminal=True, rewards={"striker": 1.0, "keeper": -1.0})
+    terminal = MagicMock(is_terminal=True, rewards=1.0)
     ctx.session.buffer.pull.side_effect = [
         None,
         None,
-        {"state": {"ball": {"x": 4.5}}, "next_state": None, "actions": {}},
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
     ]
 
     with patch("lynch.runner.assessment_registry") as mock_registry, \
@@ -212,12 +225,12 @@ def test_runner_run_episode_loop_skips_none_frames(runner):
 def test_runner_run_episode_loop_records_transition_per_frame(runner):
     ctx = MagicMock()
     ctx.session.buffer.pull.side_effect = [
-        {"state": {"ball": {"x": 0.0}}, "next_state": None, "actions": {}},
-        {"state": {"ball": {"x": 4.5}}, "next_state": {"ball": {"x": 0.0}}, "actions": {}},
+        Transition(state=FrameState(ball=None), next_state=None, actions={}),
+        Transition(state=FrameState(ball=None), next_state=FrameState(ball=None), actions={}),
     ]
 
-    non_terminal = MagicMock(is_terminal=False, rewards={"striker": 0.0, "keeper": 0.0})
-    terminal = MagicMock(is_terminal=True, rewards={"striker": 1.0, "keeper": -1.0})
+    non_terminal = MagicMock(is_terminal=False, rewards=0.0)
+    terminal = MagicMock(is_terminal=True, rewards=1.0)
 
     with patch("lynch.runner.assessment_registry") as mock_registry:
         mock_registry.evaluate.side_effect = [non_terminal, terminal]
@@ -226,10 +239,10 @@ def test_runner_run_episode_loop_records_transition_per_frame(runner):
     assert ctx.recorder.put.call_count == 2
     # Verify transition format
     first_call = ctx.recorder.put.call_args_list[0][0][0]
-    assert "state" in first_call
-    assert "next_state" in first_call
-    assert "actions" in first_call
-    assert "rewards" in first_call
+    assert hasattr(first_call, "state")
+    assert hasattr(first_call, "next_state")
+    assert hasattr(first_call, "actions")
+    assert hasattr(first_call, "rewards")
 
 
 # ─── _execute_batch ───────────────────────────────────────────────────────────

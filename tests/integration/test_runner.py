@@ -199,5 +199,5 @@ def test_runner_integration(tmp_path):
 
     # 8. Verify signal server received START and STOP
     all_signals = b"".join(mock.received_signals)
-    assert b"START" in all_signals
-    assert b"STOP" in all_signals
+    assert b"play" in all_signals
+    assert b"stop" in all_signals

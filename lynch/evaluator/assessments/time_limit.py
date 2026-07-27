@@ -16,8 +16,5 @@ class TimeLimit:
             return True
         return False
 
-    def get_rewards(self) -> Dict[str, float]:
-        return {
-            "striker": -1.0,
-            "keeper": 1.0,
-        }
+    def get_rewards(self) -> float:
+        return -1.0

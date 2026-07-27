@@ -10,20 +10,15 @@ class GoalScored:
         self.tolerance = cfg.get("tolerance", 0.03)
 
     def is_triggered(self, cur_state, history) -> bool:
-        ball = cur_state.get("ball")
+        ball = cur_state.ball
         if ball is None:
             return False
-        x = ball.get("x")
-        y = ball.get("y")
-        if x is None or y is None:
-            return False
+        x = ball.x
+        y = ball.y
         return (
             x >= self.goal_x - self.tolerance and
             -self.goal_y <= y <= self.goal_y
         )
 
-    def get_rewards(self) -> Dict[str, float]:
-        return {
-            "striker": 1.0,
-            "keeper": -1.0,
-        }
+    def get_rewards(self) -> float:
+        return 1.0
