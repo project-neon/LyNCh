@@ -75,6 +75,20 @@ class Manager:
             rob.y = robot_data.get("y", 0.0)
             rob.orientation = robot_data.get("theta", 0.0)
 
+        # Blue 2 to 10 not present
+        for r_id in range(2, 11):
+            rob = ctrl.teleport_robot.add()
+            rob.id.id = r_id
+            rob.id.team = BLUE
+            rob.present = False
+
+        # Yellow 0 to 10 not present
+        for r_id in range(0, 11):
+            rob = ctrl.teleport_robot.add()
+            rob.id.id = r_id
+            rob.id.team = YELLOW
+            rob.present = False
+
         try:
             self.__socket.sendto(
                 packet.SerializeToString(),
