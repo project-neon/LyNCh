@@ -65,9 +65,15 @@ class AssessmentRegistry:
         """Iterate loaded assessments; return the first terminal result, or a non-terminal default."""
         for assessment in self._loaded:
             if assessment.is_triggered(cur_state, history):
+                reward = assessment.get_rewards()
+                # Check if there is a DistanceToCenter or similar reward provider in loaded assessments to override the reward
+                for other in self._loaded:
+                    if hasattr(other, "get_terminal_reward"):
+                        reward = other.get_terminal_reward(cur_state)
+                        break
                 return TestResult(
                     is_terminal=True,
-                    rewards=assessment.get_rewards(),
+                    rewards=reward,
                     reason=type(assessment).__name__,
                 )
         return TestResult(

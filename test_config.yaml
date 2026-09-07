@@ -44,3 +44,11 @@ scenarios:
       - {"name": "TimeLimit", "config": {"limit": 60}}
       - "BallStopped"
       - "BallOutOfBounds"
+
+  TEST:
+    template: "templates/opposite_corners_positions.yaml"
+    strategy: "no_variance"
+    assessments:
+      - {"name": "TimeLimit", "config": {"limit": 30}}
+      - {"name": "DistanceToCenter", "config": {"robot_ids": [0, 1]}}
+
