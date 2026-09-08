@@ -8,11 +8,16 @@ class TimeLimit:
     def __init__(self, config: Optional[Dict] = None):
         cfg = config or {}
         self.limit = cfg.get("limit", 18000) # 5h in seconds
-        self.start_time = time()
+        self.start_time: Optional[float] = None
 
     def is_triggered(self, cur_state, history) -> bool:
-        if time() - self.start_time > self.limit:
-            self.start_time = time()
+        current_time = time()
+        if self.start_time is None:
+            self.start_time = current_time
+            return False
+
+        if current_time - self.start_time > self.limit:
+            self.start_time = current_time
             return True
         return False
 

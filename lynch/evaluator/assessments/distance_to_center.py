@@ -15,20 +15,29 @@ class DistanceToCenter:
         self.team = cfg.get("team", "blue")
         self.robot_ids = cfg.get("robot_ids", [0, 1])
 
-    def is_triggered(self, cur_state: FrameState, history: List) -> bool:
+    def is_triggered(self, cur_state: Union[FrameState, Dict], history: List) -> bool:
         # DistanceToCenter does not trigger termination; TimeLimit handles termination.
         return False
 
     def get_rewards(self) -> float:
         return 0.0
 
-    def get_terminal_reward(self, cur_state: FrameState) -> Dict[int, float]:
+    def get_terminal_reward(self, cur_state: Union[FrameState, Dict]) -> Dict[int, float]:
         rewards = {}
-        robots = cur_state.robots.blue if self.team == "blue" else cur_state.robots.yellow
+        if hasattr(cur_state, "robots"):
+            robots = cur_state.robots.get(self.team, []) if isinstance(cur_state.robots, dict) else (cur_state.robots.blue if self.team == "blue" else cur_state.robots.yellow)
+        elif isinstance(cur_state, dict):
+            robots = cur_state.get("robots", {}).get(self.team, [])
+        else:
+            robots = []
 
         for robot in robots:
-            if robot.id in self.robot_ids:
-                norm_dist = np.sqrt((robot.x / self.x_max)**2 + (robot.y / self.y_max)**2)
+            # Handle both object attributes and dict keys
+            r_id = getattr(robot, "id", robot.get("id", 0) if isinstance(robot, dict) else 0)
+            if r_id in self.robot_ids:
+                rx = getattr(robot, "x", robot.get("x", 0.0) if isinstance(robot, dict) else 0.0)
+                ry = getattr(robot, "y", robot.get("y", 0.0) if isinstance(robot, dict) else 0.0)
+                norm_dist = np.sqrt((rx / self.x_max)**2 + (ry / self.y_max)**2)
                 norm_dist = np.clip(norm_dist, 0.0, 1.0)
-                rewards[robot.id] = float(1.0 - 2.0 * norm_dist)
+                rewards[r_id] = float(1.0 - 2.0 * norm_dist)
         return rewards

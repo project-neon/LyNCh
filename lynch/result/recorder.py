@@ -122,10 +122,16 @@ class Recorder:
 
                 summary["tests_ran"] += 1
                 r = last_transition.get("rewards", 0.0)
+                if isinstance(r, dict):
+                    r_val = sum(r.values())
+                elif isinstance(r, (int, float)):
+                    r_val = r
+                else:
+                    r_val = 0.0
 
-                summary["total_score"] += r
+                summary["total_score"] += r_val
 
-                if r != 0:
+                if r_val != 0:
                     summary["tests_passed"] += 1
 
             except (json.JSONDecodeError, IOError, IndexError) as e:
