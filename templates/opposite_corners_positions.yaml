@@ -9,12 +9,12 @@ ball:
 robots:
   blue:
     - id: 0
-      x: -4.0
-      y: -2.5
+      x: -4.5
+      y: -3.0
       theta: 0.785
       role: "keeper"
     - id: 1
-      x: 4.0
-      y: 2.5
+      x: 4.5
+      y: 3.0
       theta: -2.356
       role: "striker"

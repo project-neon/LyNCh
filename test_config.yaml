@@ -11,6 +11,13 @@ network:
     port: "10010"
 
 scenarios:
+  TEST:
+    template: "templates/opposite_corners_positions.yaml"
+    strategy: "no_variance"
+    assessments:
+      - {"name": "TimeLimit", "config": {"limit": 5}}
+      - {"name": "DistanceToCenter", "config": {"robot_ids": [0, 1]}}
+
   SHOOTOUT:
     template: "templates/penalty_kick_positions.yaml"
     strategy: "uniform_random"
@@ -44,11 +51,3 @@ scenarios:
       - {"name": "TimeLimit", "config": {"limit": 60}}
       - "BallStopped"
       - "BallOutOfBounds"
-
-  TEST:
-    template: "templates/opposite_corners_positions.yaml"
-    strategy: "no_variance"
-    assessments:
-      - {"name": "TimeLimit", "config": {"limit": 30}}
-      - {"name": "DistanceToCenter", "config": {"robot_ids": [0, 1]}}
-
