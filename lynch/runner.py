@@ -112,9 +112,9 @@ class Runner:
         ctx.session.connector.connect()
 
         # Send metadata to NeonFC control
-        metadata = command.get("metadata", {})
+        metadata = command.get("neonfc_config", {})
         if metadata:
-            ctx.session.connector.send(Event.model_update(metadata).serialize())
+            ctx.session.connector.send(Event(**metadata).serialize())
 
         # Load assessments
         assessment_registry.load(ctx.assessments)
