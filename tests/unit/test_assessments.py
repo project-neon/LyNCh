@@ -91,13 +91,13 @@ def test_time_limit_auto_reset():
     from unittest.mock import patch
     from lynch.evaluator.assessments.time_limit import TimeLimit
 
-    # Create a mock time that progresses
+    # Create a mock clock that progresses
     mock_time = [0.0]
 
-    def fake_time():
+    def fake_monotonic():
         return mock_time[0]
 
-    with patch("lynch.evaluator.assessments.time_limit.time", fake_time):
+    with patch("lynch.evaluator.assessments.time_limit.monotonic", fake_monotonic):
         assessment = TimeLimit()
         assessment.limit = 0.1  # 100ms
 

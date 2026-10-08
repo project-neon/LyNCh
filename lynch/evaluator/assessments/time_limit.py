@@ -1,4 +1,4 @@
-from time import time
+from time import monotonic
 from typing import Dict, Optional
 from ..registry import assessment_registry
 
@@ -11,7 +11,7 @@ class TimeLimit:
         self.start_time: Optional[float] = None
 
     def is_triggered(self, cur_state, history) -> bool:
-        current_time = time()
+        current_time = monotonic()
         if self.start_time is None:
             self.start_time = current_time
             return False
