@@ -38,8 +38,19 @@ def test_setup_scenario_sends_grsim_packet(mock_grsim):
     assert ctrl.teleport_ball.x == 1.0
     assert ctrl.teleport_ball.y == 2.0
 
-    # There should be 2 robots added to teleport_robot
-    assert len(ctrl.teleport_robot) == 2
+    # Every robot is placed explicitly: the 2 from the template as
+    # present, plus explicit present=False entries for the rest of both
+    # teams so the simulator doesn't keep robots from a previous episode.
+    assert len(ctrl.teleport_robot) == 22
+
+    present = [r for r in ctrl.teleport_robot if r.present]
+    absent = [r for r in ctrl.teleport_robot if not r.present]
+    assert len(present) == 2
+    assert len(absent) == 20
+
+    from protocols.gc.ssl_gc_common_pb2 import BLUE
+    present_ids = sorted((r.id.team, r.id.id) for r in present)
+    assert present_ids == [(BLUE, 0), (BLUE, 1)]
 
 @pytest.mark.integration
 def test_setup_scenario_with_variance(mock_grsim):
