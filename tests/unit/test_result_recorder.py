@@ -88,8 +88,9 @@ def test_summarize_batch_logic(temp_batch_dir, recorder):
     # Stats Verification:
     # tests_ran: win, timeout (empty skipped because it has no lines)
     assert summary["tests_ran"] == 2
-    # tests_passed: win (1.0), timeout (-0.5) -> Both are != 0
-    assert summary["tests_passed"] == 2
+    # tests_passed: only the win. A -0.5 timeout is a loss, not a pass --
+    # the old `!= 0` test counted both.
+    assert summary["tests_passed"] == 1
 
     # Scores: (1.0 + -0.5) = 0.5
     assert summary["total_score"] == pytest.approx(0.5)
@@ -240,3 +241,34 @@ def test_summarize_batch_pass_condition(temp_batch_dir, recorder):
 
     assert summary["tests_ran"] == 3
     assert summary["tests_passed"] == 2  # scored_1 + scored_2, not draw
+
+
+def test_summarize_batch_ignores_earlier_batches(temp_batch_dir, recorder):
+    """The summary covers this batch only. Globbing the directory swept
+    in files left behind by previous batches."""
+    import json as _json
+
+    # A leftover file from an earlier batch, never closed by this recorder.
+    stale = temp_batch_dir / "history_old_01010101_deadbeef.jsonl"
+    stale.write_text(_json.dumps({
+        "cur_state": [0.0] * 16, "next_state": [0.0] * 16,
+        "actions": {}, "rewards": 5.0, "done": True,
+    }) + "\n")
+
+    recorder.start_scenario("a", seed=1)
+    recorder.put(Transition(state=FrameState(ball=None), next_state=FrameState(ball=None),
+                            actions={}, rewards=-1.0))
+    recorder.end_scenario()
+
+    recorder.start_scenario("b", seed=2)
+    recorder.put(Transition(state=FrameState(ball=None), next_state=FrameState(ball=None),
+                            actions={}, rewards={0: 0.5, 1: 0.4}))
+    recorder.end_scenario()
+
+    recorder.summarize_batch()
+
+    summary = _json.loads((temp_batch_dir / "summary.json").read_text())
+
+    assert summary["tests_ran"] == 2
+    assert summary["tests_passed"] == 1     # only the {0: 0.5, 1: 0.4} one
+    assert summary["total_score"] == pytest.approx(-1.0 + 0.5 + 0.4)

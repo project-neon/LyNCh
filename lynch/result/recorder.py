@@ -32,6 +32,10 @@ class Recorder:
         self.__current_file = None
         self.__first_seed = None
         self.__last_seed = None
+        # Only the files this Recorder closed. Globbing the directory
+        # would sweep in earlier batches (and files the trainer hasn't
+        # deleted yet) and inflate the counts.
+        self.__closed_files: list[str] = []
 
     @property
     def history(self):
@@ -88,6 +92,7 @@ class Recorder:
         if self.__current_file is not None:
             path = str(self.__current_file.name)
             self.__current_file.close()
+            self.__closed_files.append(path)
             self.__current_file = None
         self.__history.clear()
         return path
@@ -110,7 +115,8 @@ class Recorder:
             "total_score": 0.0,
         }
 
-        for run_file in self.__dir.glob("history_*.jsonl"):
+        for name in self.__closed_files:
+            run_file = Path(name)
             try:
                 with open(run_file, "r", encoding="utf-8") as f:
                     last_line = deque((line for line in f if line.strip()), maxlen=1)
@@ -131,7 +137,10 @@ class Recorder:
 
                 summary["total_score"] += r_val
 
-                if r_val != 0:
+                # "Passed" means the episode ended well. Counting every
+                # non-zero reward as a pass scored a -1.0 out-of-bounds
+                # the same as a +1.0 goal.
+                if r_val > 0:
                     summary["tests_passed"] += 1
 
             except (json.JSONDecodeError, IOError, IndexError) as e:
