@@ -294,3 +294,38 @@ def test_runner_handle_client_exception_sends_error_response(runner):
     response = mock_send.call_args[0][1]
     assert response["status"] == "error"
     assert "bad input" in response["message"]
+
+
+# ─── evaluate on next_state (T11) ─────────────────────────────────────────────
+
+@pytest.mark.unit
+def test_runner_evaluates_reward_on_next_state(runner):
+    """The transition is (s, a, s'): a ball that crosses the line in
+    s' must terminate the episode. Evaluating `transition.state` saw it
+    one frame late."""
+    from lynch.state.schema import BallState, FrameState
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load(["GoalScored"])
+
+    before = FrameState(ball=BallState(x=4.0, y=0.0, vx=1.0, vy=0.0))
+    after = FrameState(ball=BallState(x=4.6, y=0.0, vx=1.0, vy=0.0))  # past the line
+
+    transition = Transition(state=before, next_state=after, actions={})
+
+    captured = {}
+
+    class _Recorder:
+        history = []
+
+        def put(self, t):
+            captured["transition"] = t
+
+    ctx = MagicMock()
+    ctx.recorder = _Recorder()
+    ctx.session.buffer.pull.side_effect = [transition]
+
+    runner._Runner__run_episode_loop(ctx)
+
+    assert captured["transition"].done is True
+    assert captured["transition"].rewards == 1.0

@@ -203,7 +203,14 @@ class Runner:
                 time.sleep(0.001)
                 continue
 
-            result = assessment_registry.evaluate(transition.state, ctx.recorder.history)
+            # The transition is (s, a, s'): the reward and done describe
+            # the state the action led to, not the one it came from.
+            frame = (
+                transition.next_state
+                if transition.next_state is not None
+                else transition.state
+            )
+            result = assessment_registry.evaluate(frame, ctx.recorder.history)
             transition.rewards = result.rewards
             transition.done = result.is_terminal
             ctx.recorder.put(transition)
