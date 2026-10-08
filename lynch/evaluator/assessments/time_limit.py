@@ -5,6 +5,10 @@ from ..registry import assessment_registry
 
 @assessment_registry.register("TimeLimit")
 class TimeLimit:
+    # A timeout says nothing about who won, so a shaped reward from a
+    # co-loaded reward provider is appropriate here (and not on a goal).
+    allows_terminal_reward_override = True
+
     def __init__(self, config: Optional[Dict] = None):
         cfg = config or {}
         self.limit = cfg.get("limit", 18000) # 5h in seconds

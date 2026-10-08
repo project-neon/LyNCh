@@ -83,3 +83,54 @@ def test_registry_autodiscover_skips_failing_module(mock_iter):
         # good_mod should still be imported
         mock_import.assert_any_call("fake.package.good_mod")
         mock_import.assert_any_call("fake.package.bad_mod")
+
+
+# ─── terminal reward override (T16) ───────────────────────────────────────────
+
+def _state_with_ball(x, y=0.0, with_robots=False):
+    from lynch.state.schema import BallState, FrameState, RobotState
+    robots = {}
+    if with_robots:
+        robots["blue"] = [
+            RobotState(id=0, x=0.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+            RobotState(id=1, x=4.0, y=3.0, theta=0.0, vx=0.0, vy=0.0),
+        ]
+    return FrameState(ball=BallState(x=x, y=y, vx=0.0, vy=0.0), robots=robots)
+
+
+def test_goal_keeps_its_own_reward_alongside_a_reward_provider():
+    """DistanceToCenter used to clobber a goal's +1.0 whenever it was
+    co-loaded, turning the outcome into a proximity score."""
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([
+        {"name": "GoalScored", "config": {}},
+        {"name": "DistanceToCenter", "config": {"robot_ids": [0, 1]}},
+    ])
+
+    result = assessment_registry.evaluate(_state_with_ball(4.6), [])
+
+    assert result.is_terminal is True
+    assert result.rewards == 1.0
+    assert not isinstance(result.rewards, dict)
+
+
+def test_timeout_still_takes_the_shaped_reward():
+    """A timeout carries no outcome, so a shaped reward is appropriate."""
+    from unittest.mock import patch
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([
+        {"name": "TimeLimit", "config": {"limit": 5}},
+        {"name": "DistanceToCenter", "config": {"robot_ids": [0, 1]}},
+    ])
+
+    clock = [0.0]
+    with patch("lynch.evaluator.assessments.time_limit.monotonic", lambda: clock[0]):
+        assert assessment_registry.evaluate(_state_with_ball(0.0, with_robots=True), []).is_terminal is False
+        clock[0] = 6.0
+        result = assessment_registry.evaluate(_state_with_ball(0.0, with_robots=True), [])
+
+    assert result.is_terminal is True
+    assert isinstance(result.rewards, dict)
+    assert set(result.rewards) == {0, 1}

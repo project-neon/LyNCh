@@ -3,7 +3,7 @@ import logging
 import pkgutil
 import inspect
 from dataclasses import dataclass
-from typing import Dict, Type, List
+from typing import Dict, Type, List, Union
 from .assessments import Assessment
 
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TestResult:
     is_terminal: bool
-    rewards: float
+    rewards: Union[float, Dict[int, float]]
     reason: str
 
 
@@ -66,11 +66,16 @@ class AssessmentRegistry:
         for assessment in self._loaded:
             if assessment.is_triggered(cur_state, history):
                 reward = assessment.get_rewards()
-                # Check if there is a DistanceToCenter or similar reward provider in loaded assessments to override the reward
-                for other in self._loaded:
-                    if hasattr(other, "get_terminal_reward"):
-                        reward = other.get_terminal_reward(cur_state)
-                        break
+                # A shaped-reward provider (e.g. DistanceToCenter) may
+                # replace the scalar -- but only when the ending was
+                # neutral. A goal, an out-of-bounds or a stopped ball is
+                # an outcome, and overwriting it would turn +1.0 into a
+                # proximity score.
+                if getattr(assessment, "allows_terminal_reward_override", False):
+                    for other in self._loaded:
+                        if hasattr(other, "get_terminal_reward"):
+                            reward = other.get_terminal_reward(cur_state)
+                            break
                 return TestResult(
                     is_terminal=True,
                     rewards=reward,
