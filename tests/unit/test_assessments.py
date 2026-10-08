@@ -113,3 +113,35 @@ def test_time_limit_auto_reset():
         assert assessment.is_triggered({}, []) is False  # no time passed
         mock_time[0] = 0.26  # 0.15 + 0.11 > 0.1 limit
         assert assessment.is_triggered({}, []) is True  # triggers again
+
+
+def test_time_limit_reset_between_episodes():
+    """Assessments live for a whole batch. An episode that ends by
+    goal (not by timeout) used to leave the timer running, so the next
+    episode could time out on its first frame."""
+    from unittest.mock import patch
+    from lynch.evaluator.assessments.time_limit import TimeLimit
+    from lynch.evaluator.registry import assessment_registry
+    from lynch.state.schema import BallState, FrameState
+
+    clock = [0.0]
+    assessment_registry.load([
+        {"name": "GoalScored", "config": {}},
+        {"name": "TimeLimit", "config": {"limit": 5}},
+    ])
+    time_limit = next(
+        a for a in assessment_registry._loaded if a.__class__.__name__ == "TimeLimit"
+    )
+    ball = FrameState(ball=BallState(x=0.0, y=0.0, vx=0.0, vy=0.0))
+    in_goal = FrameState(ball=BallState(x=4.6, y=0.0, vx=0.0, vy=0.0))
+
+    with patch("lynch.evaluator.assessments.time_limit.monotonic", lambda: clock[0]):
+        # Episode 1 runs past the limit, then ends on a goal at t=6.
+        clock[0] = 6.0
+        assert assessment_registry.evaluate(ball, []).is_terminal is False
+        assert assessment_registry.evaluate(in_goal, []).is_terminal is True
+
+        # Episode 2 starts immediately after.
+        assessment_registry.reset()
+        clock[0] = 6.1
+        assert assessment_registry.evaluate(ball, []).is_terminal is False

@@ -14,6 +14,11 @@ class TimeLimit:
         self.limit = cfg.get("limit", 18000) # 5h in seconds
         self.start_time: Optional[float] = None
 
+    def reset(self) -> None:
+        """Called between episodes. Without this the timer carries over
+        and the next episode can time out on its very first frame."""
+        self.start_time = None
+
     def is_triggered(self, cur_state, history) -> bool:
         current_time = monotonic()
         if self.start_time is None:

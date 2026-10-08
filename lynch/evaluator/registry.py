@@ -61,6 +61,18 @@ class AssessmentRegistry:
                 raise TypeError(f"Invalid assessment spec: {item!r}")
         self._loaded = loaded
 
+    def reset(self) -> None:
+        """Clears per-episode state on every loaded assessment.
+
+        Assessments are instantiated once per batch but an episode can end
+        for any reason, so a timer started in one episode would otherwise
+        still be running in the next.
+        """
+        for assessment in self._loaded:
+            reset = getattr(assessment, "reset", None)
+            if callable(reset):
+                reset()
+
     def evaluate(self, cur_state: dict, history: List[dict]) -> TestResult:
         """Iterate loaded assessments; return the first terminal result, or a non-terminal default."""
         for assessment in self._loaded:
