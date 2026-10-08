@@ -24,4 +24,6 @@ class Event:
         return cls(type="ModelUpdate", event_data=data)
 
     def serialize(self) -> bytes:
-        return json.dumps(asdict(self)).encode("utf-8")
+        # Newline-terminated like every other channel in the system; the
+        # receiving socket buffers per object and needs the boundary.
+        return (json.dumps(asdict(self)) + "\n").encode("utf-8")

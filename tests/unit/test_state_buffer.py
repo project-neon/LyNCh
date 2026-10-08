@@ -124,18 +124,29 @@ def test_state_buffer_integration():
     assert sb.pull() == {"state": "data"}
 
 @pytest.mark.unit
-def test_state_buffer_handles_connection_error():
-    """Verify StateBuffer stops when connector raises ConnectionError."""
+def test_state_buffer_reaccepts_after_a_lost_connection():
+    """A dropped peer must not end the thread: the playing service can
+    be restarted on its own, and the harness has to pick it back up."""
     mock_connector = Mock()
     mock_parser = Mock()
-    
-    # Simulate a lost connection on the first receive
-    mock_connector.receive.side_effect = ConnectionError("Lost connection")
-    
+    mock_parser.__name__ = "JSONParser"
+
     sb = StateBuffer(connector=mock_connector, parser=mock_parser)
-    
-    # We call run() manually to verify the loop breaks
+    mock_connector.receive.side_effect = ConnectionError("Lost connection")
+
+    accepts = []
+
+    def accept_once(stop_event=None):
+        accepts.append(1)
+        if len(accepts) >= 2:
+            sb.stop_event.set()   # second time round, ask the thread to end
+            return False
+        return True
+
+    mock_connector.accept_once.side_effect = accept_once
+
     sb.run()
-    
-    # Verify the connector was closed as part of the teardown
+
+    # It went back to waiting for a peer rather than giving up.
+    assert len(accepts) == 2
     mock_connector.close.assert_called_once()
