@@ -1,6 +1,7 @@
 """Unit tests for lynch/runner.py — each helper tested in isolation."""
 
 import json
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -132,7 +133,9 @@ def test_runner_arm_episode_sends_start_and_opens_scenario(runner):
     ctx.scenario_name = "test"
     ctx.base_seed = 10
 
-    runner._Runner__arm_episode(ctx, ep_index=2)
+    # Skip the post-teleport settle wait (covered separately).
+    with patch("lynch.runner.time.sleep"):
+        runner._Runner__arm_episode(ctx, ep_index=2)
 
     # seed = base_seed + ep_index = 10 + 2 = 12
     runner._Runner__field_manager.setup_scenario.assert_called_once_with(
@@ -207,6 +210,7 @@ def test_runner_run_episode_loop_continues_until_terminal(runner):
 @pytest.mark.unit
 def test_runner_run_episode_loop_skips_none_frames(runner):
     ctx = MagicMock()
+    ctx.scenario_cfg = {}
     terminal = MagicMock(is_terminal=True, rewards=1.0)
     ctx.session.buffer.pull.side_effect = [
         None,
@@ -224,6 +228,7 @@ def test_runner_run_episode_loop_skips_none_frames(runner):
 @pytest.mark.unit
 def test_runner_run_episode_loop_records_transition_per_frame(runner):
     ctx = MagicMock()
+    ctx.scenario_cfg = {}
     ctx.session.buffer.pull.side_effect = [
         Transition(state=FrameState(ball=None), next_state=None, actions={}),
         Transition(state=FrameState(ball=None), next_state=FrameState(ball=None), actions={}),
@@ -329,3 +334,57 @@ def test_runner_evaluates_reward_on_next_state(runner):
 
     assert captured["transition"].done is True
     assert captured["transition"].rewards == 1.0
+
+
+# ─── settle after teleport (T14) ─────────────────────────────────────────────
+
+@pytest.mark.unit
+def test_runner_waits_for_the_teleport_to_settle(runner):
+    """Frames from before the teleport are still in flight when the UDP
+    packet is sent, so the order has to be setup -> sleep -> clear -> play."""
+    order = []
+
+    runner._Runner__field_manager.setup_scenario.side_effect = \
+        lambda *a, **k: order.append("setup_scenario")
+
+    ctx = MagicMock()
+    ctx.base_seed = 0
+    ctx.template = {}
+    ctx.scenario_cfg = {"settle_time": 0.5}
+    ctx.session.buffer.clear.side_effect = lambda: order.append("clear")
+    ctx.session.connector.send.side_effect = lambda data: order.append("send")
+    ctx.recorder.start_scenario.side_effect = lambda *a: order.append("start_scenario")
+
+    with patch("lynch.runner.time.sleep", side_effect=lambda s: order.append(("sleep", s))):
+        runner._Runner__arm_episode(ctx, 0)
+
+    filtered = [o for o in order if o != "start_scenario"]
+    assert filtered == ["setup_scenario", ("sleep", 0.5), "clear", "send"]
+
+
+@pytest.mark.unit
+def test_runner_settle_time_defaults_to_half_a_second(runner):
+    ctx = MagicMock()
+    ctx.scenario_cfg = {}
+    ctx.session.buffer.clear.side_effect = lambda: None
+
+    with patch("lynch.runner.time.sleep") as mock_sleep:
+        runner._Runner__arm_episode(ctx, 0)
+
+    mock_sleep.assert_called_once_with(0.5)
+
+
+@pytest.mark.unit
+def test_runner_episode_loop_times_out_without_frames(runner):
+    """With a dead data link the loop used to spin forever, against a
+    client-side timeout that could be minutes away."""
+    ctx = MagicMock()
+    ctx.scenario_cfg = {"frame_timeout": 0.2}
+    ctx.session.buffer.pull.return_value = None
+
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        runner._Runner__run_episode_loop(ctx)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.5

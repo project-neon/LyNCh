@@ -186,10 +186,22 @@ class Runner:
         """Reset field and send START signal."""
         seed = ctx.base_seed + ep_index
         self.__field_manager.setup_scenario(ctx.template, ctx.scenario_cfg, seed)
-        
+
+        # The teleport is fire-and-forget UDP, and a frame from the old
+        # world is still in flight (sim -> autoref -> NeonFC -> TCP).
+        # Give the pipeline time to drain before clearing and starting,
+        # otherwise those stale frames open the new episode.
+        settle = ctx.scenario_cfg.get("settle_time", 0.5)
+        if settle:
+            time.sleep(settle)
+
         # Clear any leftover frames from previous episodes
         ctx.session.buffer.clear()
-        
+
+        # Assessments are instantiated once per batch, so anything they
+        # carry over from the previous episode has to be dropped here.
+        assessment_registry.reset()
+
         ctx.session.connector.send(Event.play().serialize())
         ctx.recorder.start_scenario(ctx.scenario_name, seed)
 
@@ -197,11 +209,20 @@ class Runner:
         """Pull frames, evaluate, record until terminal."""
         logger.info(f"Starting episode loop. Loaded assessments: {[type(a).__name__ for a in assessment_registry._loaded]}")
 
+        # Without this a dead data link means the loop spins forever,
+        # against a client-side timeout that may be minutes away.
+        frame_timeout = ctx.scenario_cfg.get("frame_timeout", 10.0)
+        last_frame = time.monotonic()
+
         while not self.__shutdown_event.is_set():
             transition = ctx.session.buffer.pull()
             if transition is None:
+                if time.monotonic() - last_frame > frame_timeout:
+                    raise TimeoutError(f"no frames for {frame_timeout}s")
                 time.sleep(0.001)
                 continue
+
+            last_frame = time.monotonic()
 
             # The transition is (s, a, s'): the reward and done describe
             # the state the action led to, not the one it came from.
