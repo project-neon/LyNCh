@@ -134,3 +134,49 @@ def test_timeout_still_takes_the_shaped_reward():
     assert result.is_terminal is True
     assert isinstance(result.rewards, dict)
     assert set(result.rewards) == {0, 1}
+
+
+# ─── per-frame shaping (T18) ──────────────────────────────────────────────────
+
+
+def test_shape_collects_provider_rewards_and_fills_missing_robots():
+    """RL-Engine parses every recorded line once per role and rejects
+    lines whose reward dict lacks that role's key, so every robot on
+    the field must get an entry -- 0.0 when no provider shapes it."""
+    from lynch.evaluator.registry import assessment_registry
+    from lynch.state.schema import BallState, FrameState, RobotState
+
+    assessment_registry.load([
+        {"name": "BallProgress", "config": {"robot_id": 1, "weight": 0.5}},
+    ])
+
+    robots = [
+        RobotState(id=0, x=4.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+        RobotState(id=1, x=1.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+    ]
+    prev = FrameState(ball=BallState(2.5, 0.0, 0.0, 0.0), robots={"blue": robots})
+    closer = FrameState(
+        ball=BallState(2.5, 0.0, 0.0, 0.0),
+        robots={"blue": [
+            robots[0],
+            RobotState(id=1, x=1.5, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+        ]},
+    )
+
+    shaped = assessment_registry.shape(prev, closer)
+
+    assert shaped == {0: pytest.approx(0.0), 1: pytest.approx(0.25)}
+
+
+def test_shape_returns_empty_without_a_provider():
+    """With no shaping provider loaded the runner must leave the
+    scalar reward untouched, not replace it with an all-zero dict."""
+    from lynch.evaluator.registry import assessment_registry
+    from lynch.state.schema import BallState, FrameState
+
+    assessment_registry.load([{"name": "GoalScored", "config": {}}])
+
+    prev = FrameState(ball=BallState(0.0, 0.0, 0.0, 0.0))
+    cur = FrameState(ball=BallState(1.0, 0.0, 0.0, 0.0))
+
+    assert assessment_registry.shape(prev, cur) == {}

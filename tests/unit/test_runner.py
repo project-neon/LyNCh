@@ -377,6 +377,55 @@ def test_runner_evaluates_reward_on_next_state(runner):
     assert captured["transition"].rewards == 1.0
 
 
+# ─── dense shaping merge (T18) ───────────────────────────────────────────────
+
+@pytest.mark.unit
+def test_runner_merges_shaping_into_non_terminal_frames(runner):
+    """Dense shaping rides on non-terminal frames as a per-robot dict;
+    the terminal frame keeps the assessment's scalar outcome reward --
+    the recorder scores a whole episode by its last line."""
+    from lynch.state.schema import BallState, RobotState
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([
+        {"name": "GoalScored", "config": {}},
+        {"name": "BallProgress", "config": {"robot_id": 1, "weight": 0.5}},
+    ])
+
+    def robots(striker_x):
+        return {"blue": [
+            RobotState(id=0, x=4.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+            RobotState(id=1, x=striker_x, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+        ]}
+
+    far = FrameState(ball=BallState(2.5, 0.0, 0.0, 0.0), robots=robots(1.0))
+    closer = FrameState(ball=BallState(2.5, 0.0, 0.0, 0.0), robots=robots(1.5))
+    closer_still = FrameState(ball=BallState(2.5, 0.0, 0.0, 0.0), robots=robots(2.0))
+    goal = FrameState(ball=BallState(4.6, 0.0, 0.0, 0.0), robots=robots(2.0))
+
+    ctx = MagicMock()
+    ctx.scenario_cfg = {}
+    ctx.recorder.history = []
+    ctx.session.buffer.pull.side_effect = [
+        Transition(state=far, next_state=closer, actions={}),
+        Transition(state=closer, next_state=closer_still, actions={}),
+        Transition(state=closer_still, next_state=goal, actions={}),
+    ]
+
+    captured = []
+    ctx.recorder.put.side_effect = captured.append
+
+    runner._Runner__run_episode_loop(ctx)
+
+    # First frame has no predecessor to shape against: scalar 0.0.
+    assert captured[0].rewards == 0.0
+    # Second frame: striker closed 0.5m, weight 0.5 -> +0.25 for robot 1,
+    # and 0.0 for the keeper so its reward-key lookup survives.
+    assert captured[1].rewards == {0: pytest.approx(0.0), 1: pytest.approx(0.25)}
+    # Terminal frame: the goal's scalar +1.0, untouched by shaping.
+    assert captured[2].rewards == 1.0
+
+
 # ─── settle after teleport (T14) ─────────────────────────────────────────────
 
 @pytest.mark.unit

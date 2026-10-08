@@ -223,6 +223,9 @@ class Runner:
         # against a client-side timeout that may be minutes away.
         frame_timeout = ctx.scenario_cfg.get("frame_timeout", 10.0)
         last_frame = time.monotonic()
+        # The previous frame, for dense shaping between consecutive
+        # states. None on the first frame, so the first step is unshaped.
+        prev_frame = None
 
         while not self.__shutdown_event.is_set():
             transition = ctx.session.buffer.pull()
@@ -244,7 +247,15 @@ class Runner:
             result = assessment_registry.evaluate(frame, ctx.recorder.history)
             transition.rewards = result.rewards
             transition.done = result.is_terminal
+            # Terminal frames keep the assessment's outcome reward as-is:
+            # the recorder scores a whole episode by its last line, and
+            # mixing shaping into an outcome would blur the two.
+            if not result.is_terminal and prev_frame is not None:
+                shaped = assessment_registry.shape(prev_frame, frame)
+                if shaped:
+                    transition.rewards = shaped
             ctx.recorder.put(transition)
+            prev_frame = frame
 
             if result.is_terminal:
                 logger.info(f"Episode terminated. Reason: {result.reason}")

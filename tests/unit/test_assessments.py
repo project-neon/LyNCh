@@ -145,3 +145,72 @@ def test_time_limit_reset_between_episodes():
         assessment_registry.reset()
         clock[0] = 6.1
         assert assessment_registry.evaluate(ball, []).is_terminal is False
+
+
+# ─── BallProgress shaping (T18) ──────────────────────────────────────────────
+
+
+def _frame(robot_pos, ball_pos):
+    from lynch.state.schema import BallState, FrameState, RobotState
+
+    (rx, ry), (bx, by) = robot_pos, ball_pos
+    return FrameState(
+        ball=BallState(x=bx, y=by, vx=0.0, vy=0.0),
+        robots={
+            "blue": [
+                RobotState(id=0, x=4.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+                RobotState(id=1, x=rx, y=ry, theta=0.0, vx=0.0, vy=0.0),
+            ]
+        },
+    )
+
+
+def _ball_progress():
+    from lynch.evaluator.assessments.ball_progress import BallProgress
+
+    return BallProgress(config={"robot_id": 1, "weight": 0.5})
+
+
+def test_ball_progress_rewards_closing_distance():
+    prev = _frame((1.0, 0.0), (2.5, 0.0))
+    cur = _frame((1.5, 0.0), (2.5, 0.0))  # closed 0.5m
+
+    assert _ball_progress().shape(prev, cur) == {1: pytest.approx(0.25)}
+
+
+def test_ball_progress_penalizes_opening_distance():
+    prev = _frame((1.5, 0.0), (2.5, 0.0))
+    cur = _frame((1.0, 0.0), (2.5, 0.0))  # opened 0.5m
+
+    assert _ball_progress().shape(prev, cur) == {1: pytest.approx(-0.25)}
+
+
+def test_ball_progress_weights_scale_the_slope():
+    from lynch.evaluator.assessments.ball_progress import BallProgress
+
+    prev = _frame((1.0, 0.0), (2.5, 0.0))
+    cur = _frame((2.0, 0.0), (2.5, 0.0))
+
+    steep = BallProgress(config={"robot_id": 1, "weight": 2.0})
+    assert steep.shape(prev, cur) == {1: pytest.approx(2.0)}
+
+
+def test_ball_progress_skips_frames_without_a_robot_or_ball():
+    from lynch.state.schema import FrameState
+
+    assessment = _ball_progress()
+    prev = _frame((1.0, 0.0), (2.5, 0.0))
+
+    # Ball missing in the current frame
+    assert assessment.shape(prev, FrameState(ball=None, robots={"blue": []})) == {}
+    # Robot missing in the current frame
+    no_striker = _frame((1.0, 0.0), (2.5, 0.0))
+    no_striker.robots["blue"] = [no_striker.robots["blue"][0]]
+    assert assessment.shape(prev, no_striker) == {}
+
+
+def test_ball_progress_never_terminates():
+    assessment = _ball_progress()
+
+    assert assessment.is_triggered(_frame((1.0, 0.0), (2.5, 0.0)), []) is False
+    assert assessment.get_rewards() == 0.0

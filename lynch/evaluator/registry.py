@@ -73,6 +73,32 @@ class AssessmentRegistry:
             if callable(reset):
                 reset()
 
+    def shape(self, prev_state, cur_state) -> Dict[int, float]:
+        """Collect per-frame shaped rewards from co-loaded providers.
+
+        Providers contribute through an optional `shape(prev, cur)`
+        method returning a dict keyed by robot id. Every robot present
+        in `cur_state` gets an entry (0.0 when unshaped): RL-Engine
+        parses each recorded line once per role and rejects lines whose
+        reward dict lacks that role's key. Returns {} when no loaded
+        assessment provides shaping, so the runner can leave the
+        scalar reward untouched.
+        """
+        providers = [
+            a for a in self._loaded if callable(getattr(a, "shape", None))
+        ]
+        if not providers:
+            return {}
+
+        shaped: Dict[int, float] = {}
+        for robots in (getattr(cur_state, "robots", None) or {}).values():
+            for robot in robots:
+                shaped[robot.id] = 0.0
+        for provider in providers:
+            for rid, reward in provider.shape(prev_state, cur_state).items():
+                shaped[rid] = shaped.get(rid, 0.0) + reward
+        return shaped
+
     def evaluate(self, cur_state: dict, history: List[dict]) -> TestResult:
         """Iterate loaded assessments; return the first terminal result, or a non-terminal default."""
         for assessment in self._loaded:
