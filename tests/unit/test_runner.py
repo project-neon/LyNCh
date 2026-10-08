@@ -301,6 +301,47 @@ def test_runner_handle_client_exception_sends_error_response(runner):
     assert "bad input" in response["message"]
 
 
+@pytest.mark.unit
+def test_runner_error_response_reaches_the_client(runner):
+    """A real socketpair, not a mock: the bug was that the socket was
+    closed before the error response was written, so RL-Engine saw EOF."""
+    import socket as _socket
+
+    server_side, client_side = _socket.socketpair()
+    try:
+        # An unknown test_case makes the batch fail; the point is that
+        # the failure is reported rather than swallowed as EOF.
+        client_side.sendall(json.dumps({"test_case": "does_not_exist"}).encode() + b"\n")
+        runner._Runner__handle_client(server_side)
+
+        client_side.settimeout(2.0)
+        data = b""
+        while b"\n" not in data:
+            chunk = client_side.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+
+        assert data, "client received nothing"
+        response = json.loads(data.decode("utf-8").strip())
+        assert response["status"] == "error"
+        assert "message" in response
+    finally:
+        client_side.close()
+
+
+@pytest.mark.unit
+def test_runner_missing_test_case_message(runner):
+    mock_conn = MagicMock()
+    with patch.object(runner, "_Runner__receive_command", return_value={}), \
+         patch.object(runner, "_Runner__send_response") as mock_send:
+        runner._Runner__handle_client(mock_conn)
+
+    response = mock_send.call_args[0][1]
+    assert response["status"] == "error"
+    assert "test_case" in response["message"]
+
+
 # ─── evaluate on next_state (T11) ─────────────────────────────────────────────
 
 @pytest.mark.unit

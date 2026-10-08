@@ -91,24 +91,34 @@ class Runner:
         self.close()
 
     def __handle_client(self, conn: socket.socket) -> None:
-        """Handle a single RL-Engine session."""
+        """Handle a single RL-Engine session.
+
+        The socket is closed only in `finally`, after the response has
+        been sent: closing it in a `with` block scoped to the batch would
+        mean the error path had nothing left to write to.
+        """
         try:
-            with conn:
+            try:
                 command = self.__receive_command(conn)
                 result = self.__handle_batch(command)
-                self.__send_response(conn, result)
-        except Exception as e:
-            logger.error(f"Error handling client: {e}")
+            except Exception as e:
+                logger.error(f"Error handling client: {e}")
+                result = {"status": "error", "message": str(e)}
+
             try:
-                self.__send_response(conn, {"status": "error", "message": str(e)})
+                self.__send_response(conn, result)
             except OSError:
                 pass
+        finally:
+            conn.close()
 
     def __handle_batch(self, command: Dict) -> dict:
         """Orchestrate the complete batch lifecycle."""
         ctx = self.__build_episode_context(command)
 
-        # Connect control connector (for sending metadata/START/STOP)
+        # Connect control connector (for sending metadata/START/STOP).
+        # Close first: the previous batch's socket would otherwise leak.
+        ctx.session.connector.close()
         ctx.session.connector.connect()
 
         # Send metadata to NeonFC control
@@ -135,7 +145,7 @@ class Runner:
         """Build the context for a single batch."""
         scenario_name = command.get("test_case")
         if not scenario_name:
-            raise ValueError("Missing 'scenario_name' in command")
+            raise ValueError("Missing 'test_case' in command")
 
         if scenario_name not in self.__scenarios_config:
             raise KeyError(f"Scenario '{scenario_name}' is not configured")
