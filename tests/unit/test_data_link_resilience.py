@@ -48,6 +48,7 @@ def _wait_for(buffer, n, timeout=5.0):
 def test_frames_survive_a_disconnect_and_reconnect():
     port = _free_port()
     connector = TCPConnector("127.0.0.1", port, as_server=True)
+    connector._ensure_listener()
     buffer = Buffer(connector, JSONParser)
     buffer.start()
 
@@ -103,6 +104,7 @@ def test_accept_once_returns_false_when_stopped():
 def test_malformed_line_does_not_kill_the_thread():
     port = _free_port()
     connector = TCPConnector("127.0.0.1", port, as_server=True)
+    connector._ensure_listener()
     buffer = Buffer(connector, JSONParser)
     buffer.start()
 
