@@ -2,7 +2,7 @@
 # Coordinates are in meters relative to the field center (0,0)
 
 ball:
-  x: 0.0
+  x: 2.5
   y: 0.0
   z: 0.0
 
@@ -14,7 +14,7 @@ robots:
       theta: 3.1415
       role: "keeper"
     - id: 1
-      x: 2.0
+      x: 1.0
       y: 0.0
       theta: 0.0
       role: "striker"
