@@ -12,6 +12,11 @@ class TimeLimit:
     def __init__(self, config: Optional[Dict] = None):
         cfg = config or {}
         self.limit = cfg.get("limit", 18000) # 5h in seconds
+        # Terminal reward for the timeout ending. Default keeps the
+        # historical -1.0 failure penalty; a scenario can set it to 0.0
+        # for goal-only reward semantics (timeout says nothing about
+        # who won, so under goal-only it is neutral, not a penalty).
+        self.terminal_reward = cfg.get("reward", -1.0)
         self.start_time: Optional[float] = None
 
     def reset(self) -> None:
@@ -31,4 +36,4 @@ class TimeLimit:
         return False
 
     def get_rewards(self) -> float:
-        return -1.0
+        return self.terminal_reward
