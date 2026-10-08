@@ -35,12 +35,24 @@ scenarios:
             x: [-0.2, 0.2]
             y: [-0.5, 0.5]
             theta: [-1.57, 1.57]
-    # Pure shootout semantics: the ONLY reward event is a scored goal
+    # Shootout semantics: the only OUTCOME reward is a scored goal
     # (+1.0 striker / -1.0 keeper via zero_sum). TimeLimit and
     # BallOutOfBounds still terminate episodes but emit 0.0 -- a
     # timeout or a dead ball says nothing about who won, so under
     # goal-only semantics they are neutral, not penalties. gamma < 1
     # supplies the time pressure (scoring sooner discounts less).
+    #
+    # On top of that, BallProgress adds potential-based shaping for the
+    # striker: +weight per metre of closed striker-ball distance, per
+    # frame. The first night of goal-only training collapsed: with a
+    # flat Q the SAC entropy term drags the policy to the action-space
+    # origin (the field centre) and the ball never moved (0 goals in
+    # 200k transitions, 0.9% of frames within 0.5m of the ball). The
+    # slope gives Q a gradient to descend before the first goal ever
+    # fires; being potential-based it does not move the optimum, and
+    # weight 0.5 keeps the full ~1.5m approach (~0.75) under the +1.0
+    # goal. The keeper gets no slope so the goal stays open while the
+    # striker bootstraps.
     #
     # Order matters: the first triggered assessment wins. A goal on the
     # final frame counts as a goal, not as a timeout.
@@ -53,6 +65,7 @@ scenarios:
       - "GoalScored"
       - {"name": "TimeLimit", "config": {"limit": 25, "reward": 0.0}}
       - {"name": "BallOutOfBounds", "config": {"reward": 0.0}}
+      - {"name": "BallProgress", "config": {"robot_id": 1, "weight": 0.5}}
 
   penalty_kick_gaussian:
     template: "templates/penalty_kick_positions.yaml"
