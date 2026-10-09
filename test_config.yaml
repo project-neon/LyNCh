@@ -44,7 +44,7 @@ scenarios:
     #
     # On top of that, BallProgress adds potential-based shaping for the
     # striker: +weight per metre of closed striker-ball distance, per
-    # frame. The first night of goal-only training collapsed: with a
+    # recorded transition. The first night of goal-only training collapsed: with a
     # flat Q the SAC entropy term drags the policy to the action-space
     # origin (the field centre) and the ball never moved (0 goals in
     # 200k transitions, 0.9% of frames within 0.5m of the ball). The
@@ -61,6 +61,17 @@ scenarios:
     # uniform timeout (the striker starts ~2m from the ball), so goals
     # were physically unreachable. 25s gives ~1500 transitions/episode
     # and time to actually score.
+    #
+    # coalesce_frames: record one transition per held action, not one
+    # per 16ms frame. The agent replays one action for ~7 frames; a
+    # night of per-frame recording showed the reward on a frame is the
+    # same whether the action just changed or was held (|delta| 0.0038
+    # vs 0.0036 -- motion within a frame is inertia from earlier
+    # actions), so Q(s,a) learned nothing about a, and gamma=0.99 per
+    # frame put the goal beyond a ~1.7s horizon. Coalescing sums the
+    # frames' rewards onto the decision that caused them; the shaping
+    # telescopes, so episode totals are unchanged.
+    coalesce_frames: true
     assessments:
       - "GoalScored"
       - {"name": "TimeLimit", "config": {"limit": 25, "reward": 0.0}}

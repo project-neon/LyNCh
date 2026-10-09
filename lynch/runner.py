@@ -226,6 +226,26 @@ class Runner:
         # The previous frame, for dense shaping between consecutive
         # states. None on the first frame, so the first step is unshaped.
         prev_frame = None
+        # Decision-cadence coalescing (scenario opt-in). NeonFC replays
+        # one action for several frames, so per-frame records split a
+        # single decision's consequence across ~7 lines whose rewards
+        # are mostly inertia from earlier actions -- at frame granularity
+        # Q(s,a) carries no action signal, and gamma per frame buries
+        # the goal behind a ~1.7s horizon. Recording one transition per
+        # held action attributes the summed frames to the decision that
+        # caused them; the potential-based shaping telescopes, so the
+        # per-episode reward total is unchanged. Measured on recorded
+        # episodes: held actions repeat bitwise-identically, so plain
+        # equality marks a hold reliably.
+        coalesce = ctx.scenario_cfg.get("coalesce_frames", False)
+        pending: Optional[Transition] = None
+        held_actions: Optional[Dict[str, Any]] = None
+
+        def flush_pending() -> None:
+            nonlocal pending
+            if pending is not None:
+                ctx.recorder.put(pending)
+                pending = None
 
         while not self.__shutdown_event.is_set():
             transition = ctx.session.buffer.pull()
@@ -254,12 +274,54 @@ class Runner:
                 shaped = assessment_registry.shape(prev_frame, frame)
                 if shaped:
                     transition.rewards = shaped
-            ctx.recorder.put(transition)
             prev_frame = frame
 
             if result.is_terminal:
                 logger.info(f"Episode terminated. Reason: {result.reason}")
+                # A terminal line is its own record -- scalar outcome,
+                # done=True -- and closes the episode. Whatever the
+                # previous decision accumulated is flushed in front of
+                # it, so the (s, a, s') chain stays contiguous even
+                # when the terminal frame held the same action.
+                flush_pending()
+                ctx.recorder.put(transition)
                 break
+
+            if not coalesce:
+                ctx.recorder.put(transition)
+            elif pending is not None and transition.actions == held_actions:
+                pending.next_state = transition.next_state
+                pending.rewards = self.__merge_rewards(pending.rewards, transition.rewards)
+            else:
+                flush_pending()
+                pending = transition
+                held_actions = transition.actions
+
+        # Leaving the loop without a terminal frame (shutdown event)
+        # would drop the last decision's record; don't.
+        flush_pending()
+
+    @staticmethod
+    def __merge_rewards(acc, addend):
+        """Sum two frames' rewards into one coalesced reward.
+
+        Scalar rewards are shared by every role (the same semantics
+        RL-Engine's reward parser applies); dict rewards are per-robot.
+        The sum stays scalar only while every merged frame's reward was
+        scalar, so scenarios without a shaping provider keep their
+        scalar records.
+        """
+        if not isinstance(acc, dict) and not isinstance(addend, dict):
+            return acc + addend
+        if not isinstance(acc, dict):
+            acc = {rid: acc for rid in addend}
+        if isinstance(addend, dict):
+            for rid, value in addend.items():
+                acc[rid] = acc.get(rid, 0.0) + value
+        else:
+            for rid in acc:
+                acc[rid] = acc[rid] + addend
+        return acc
 
     def __stop_episode(self, ctx: EpisodeContext) -> Optional[str]:
         """Send STOP signal and close recorder. Returns the closed file path."""

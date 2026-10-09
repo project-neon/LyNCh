@@ -426,6 +426,160 @@ def test_runner_merges_shaping_into_non_terminal_frames(runner):
     assert captured[2].rewards == 1.0
 
 
+# ─── decision-cadence coalescing (T19) ─────────────────────────────────────────
+
+
+def _shootout_frames():
+    """A striker walking to a ball at x=2.5, frame by frame."""
+    from lynch.state.schema import BallState, FrameState, RobotState
+
+    def robots(striker_x):
+        return {"blue": [
+            RobotState(id=0, x=4.0, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+            RobotState(id=1, x=striker_x, y=0.0, theta=0.0, vx=0.0, vy=0.0),
+        ]}
+
+    def frame(striker_x, ball_x=2.5):
+        return FrameState(
+            ball=BallState(ball_x, 0.0, 0.0, 0.0),
+            robots=robots(striker_x),
+        )
+
+    return frame
+
+
+@pytest.mark.unit
+def test_runner_coalesces_frames_of_one_decision_into_one_transition(runner):
+    """With coalesce_frames the recorder sees one (s, a, s') per held
+    action, its rewards summed -- not one line per 16ms frame."""
+    from lynch.state.schema import BallState, FrameState
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([
+        {"name": "GoalScored", "config": {}},
+        {"name": "BallProgress", "config": {"robot_id": 1, "weight": 0.5}},
+    ])
+    frame = _shootout_frames()
+
+    hold = {"striker": [0.1, 0.2, 0.3, 0.4], "goalkeeper": [0.0, 0.0, 0.0, 0.0]}
+    other = {"striker": [0.9, 0.2, 0.3, 0.4], "goalkeeper": [0.0, 0.0, 0.0, 0.0]}
+
+    f0, f1, f2, f3 = frame(0.0), frame(0.5), frame(1.0), frame(1.5)
+    goal = FrameState(ball=BallState(4.6, 0.0, 0.0, 0.0), robots=f0.robots)
+
+    ctx = MagicMock()
+    ctx.scenario_cfg = {"coalesce_frames": True}
+    ctx.recorder.history = []
+    ctx.session.buffer.pull.side_effect = [
+        Transition(state=f0, next_state=f1, actions=hold),
+        Transition(state=f1, next_state=f2, actions=hold),
+        Transition(state=f2, next_state=f3, actions=hold),
+        Transition(state=f3, next_state=goal, actions=other),
+    ]
+
+    captured = []
+    ctx.recorder.put.side_effect = captured.append
+
+    runner._Runner__run_episode_loop(ctx)
+
+    assert len(captured) == 2
+
+    # Three same-action frames collapse into one record: the first
+    # frame's state, the last frame's next_state, the summed shaping.
+    # The first frame's scalar 0.0 (no predecessor to shape against)
+    # folds into the dict without changing it.
+    merged = captured[0]
+    assert merged.state is f0
+    assert merged.next_state is f3
+    assert merged.actions == hold
+    assert merged.rewards == {0: pytest.approx(0.0), 1: pytest.approx(0.5)}
+    assert merged.done is False
+
+    # The terminal record stands on its own: scalar outcome, done=True.
+    assert captured[1].rewards == 1.0
+    assert captured[1].done is True
+
+
+@pytest.mark.unit
+def test_runner_coalescing_splits_when_the_action_changes(runner):
+    """A new decision starts a new record; and without a shaping
+    provider the summed reward stays scalar, like each frame's was."""
+    from lynch.state.schema import BallState, FrameState
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([{"name": "GoalScored", "config": {}}])
+    frame = _shootout_frames()
+
+    a = {"striker": [0.1, 0.0, 0.0, 0.0]}
+    b = {"striker": [0.9, 0.0, 0.0, 0.0]}
+
+    f0, f1, f2, f3, f4 = frame(0.0), frame(0.5), frame(1.0), frame(1.2), frame(1.4)
+    goal = FrameState(ball=BallState(4.6, 0.0, 0.0, 0.0), robots=f0.robots)
+
+    ctx = MagicMock()
+    ctx.scenario_cfg = {"coalesce_frames": True}
+    ctx.recorder.history = []
+    ctx.session.buffer.pull.side_effect = [
+        Transition(state=f0, next_state=f1, actions=a),
+        Transition(state=f1, next_state=f2, actions=a),
+        Transition(state=f2, next_state=f3, actions=b),
+        Transition(state=f3, next_state=f4, actions=b),
+        Transition(state=f4, next_state=goal, actions=b),
+    ]
+
+    captured = []
+    ctx.recorder.put.side_effect = captured.append
+
+    runner._Runner__run_episode_loop(ctx)
+
+    # Two decisions, then the terminal frame -- which held the same
+    # action as the second decision but still gets its own line, or
+    # the recorder's score-by-last-line would read shaping as outcome.
+    assert len(captured) == 3
+    assert captured[0].state is f0 and captured[0].next_state is f2 and captured[0].actions == a
+    assert captured[1].state is f2 and captured[1].next_state is f4 and captured[1].actions == b
+    assert captured[0].done is False and captured[1].done is False
+    # Scalar rewards sum to a scalar: no dict is invented without a
+    # shaping provider.
+    assert isinstance(captured[0].rewards, float)
+    assert captured[0].rewards == pytest.approx(0.0)
+    assert captured[2].rewards == 1.0
+    assert captured[2].done is True
+
+
+@pytest.mark.unit
+def test_runner_without_coalesce_flag_records_every_frame(runner):
+    """The flag is opt-in: by default the recorder still sees one line
+    per frame, even when consecutive frames hold the same action."""
+    from lynch.evaluator.registry import assessment_registry
+
+    assessment_registry.load([{"name": "GoalScored", "config": {}}])
+    frame = _shootout_frames()
+
+    hold = {"striker": [0.1, 0.0, 0.0, 0.0]}
+    f0, f1, f2 = frame(0.0), frame(0.5), frame(1.0)
+
+    ctx = MagicMock()
+    ctx.scenario_cfg = {}
+    ctx.recorder.history = []
+    ctx.session.buffer.pull.side_effect = [
+        Transition(state=f0, next_state=f1, actions=hold),
+        Transition(state=f1, next_state=f2, actions=hold),
+        StopIteration,
+    ]
+
+    captured = []
+    ctx.recorder.put.side_effect = captured.append
+
+    try:
+        runner._Runner__run_episode_loop(ctx)
+    except StopIteration:
+        pass
+
+    assert len(captured) == 2
+    assert captured[0].state is f0 and captured[1].state is f1
+
+
 # ─── settle after teleport (T14) ─────────────────────────────────────────────
 
 @pytest.mark.unit
