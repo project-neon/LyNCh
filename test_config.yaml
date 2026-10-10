@@ -49,10 +49,25 @@ scenarios:
     # origin (the field centre) and the ball never moved (0 goals in
     # 200k transitions, 0.9% of frames within 0.5m of the ball). The
     # slope gives Q a gradient to descend before the first goal ever
-    # fires; being potential-based it does not move the optimum, and
-    # weight 0.5 keeps the full ~1.5m approach (~0.75) under the +1.0
-    # goal. The keeper gets no slope so the goal stays open while the
-    # striker bootstraps.
+    # fires; being potential-based it does not move the optimum. The
+    # keeper gets no slope so the goal stays open while the striker
+    # bootstraps.
+    #
+    # weight 1.5 (raised from 0.5 on 2026-10-10): the weight-0.5 run's
+    # critic did learn the toward-ball action advantage (probe gap
+    # +0.001..0.0017 over 76-88% of the buffer -- real, ~3x the
+    # per-frame-era ceiling) but the magnitude was too small against the
+    # fixed SAC entropy pressure (alpha=0.05) for the actor to hold what
+    # it learned: toward-ball preference peaked at +0.19 m at epoch 50,
+    # then the peaks halved each cycle (+0.10, +0.05, then negative) --
+    # 0 goals in 95 epochs. Tripling the weight triples the advantage
+    # the critic already detects. The goal reward keeps its +1.0: the
+    # shaping is potential-based, so along any completed trajectory it
+    # telescopes to w*(d_start - d_end) and cancels in policy ranking;
+    # only the goal discriminates outcomes. With weight 1.5 the
+    # telescoped approach (~2.3m) sums to ~3.5, which exceeds the goal
+    # magnitude -- accepted, because the telescoped term is identical
+    # for every policy that ends the episode the same way.
     #
     # Order matters: the first triggered assessment wins. A goal on the
     # final frame counts as a goal, not as a timeout.
@@ -76,7 +91,7 @@ scenarios:
       - "GoalScored"
       - {"name": "TimeLimit", "config": {"limit": 25, "reward": 0.0}}
       - {"name": "BallOutOfBounds", "config": {"reward": 0.0}}
-      - {"name": "BallProgress", "config": {"robot_id": 1, "weight": 0.5}}
+      - {"name": "BallProgress", "config": {"robot_id": 1, "weight": 1.5}}
 
   penalty_kick_gaussian:
     template: "templates/penalty_kick_positions.yaml"
